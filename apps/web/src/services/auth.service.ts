@@ -3,9 +3,6 @@
 import { supabase } from "@/lib/supabase"
 import type { Role } from "@elsms/types"
 
-// Debug: Log Supabase config (remove in production)
-console.log("Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 20) + "...")
-
 // Helper to sync Supabase session from localStorage to cookies (for middleware detection)
 export function syncSessionToCookies(): boolean {
   if (typeof window === 'undefined') return false
@@ -16,7 +13,6 @@ export function syncSessionToCookies(): boolean {
     const sessionData = localStorage.getItem(sessionKey)
     
     if (!sessionData) {
-      console.log("DEBUG: No session in localStorage to sync")
       return false
     }
     
@@ -25,7 +21,6 @@ export function syncSessionToCookies(): boolean {
     const refreshToken = session.refresh_token
     
     if (!accessToken) {
-      console.log("DEBUG: No access token in session")
       return false
     }
     
@@ -37,10 +32,8 @@ export function syncSessionToCookies(): boolean {
       document.cookie = `sb-refresh-token=${refreshToken}; path=/; max-age=${maxAge}; SameSite=Lax`
     }
     
-    console.log("DEBUG: Session synced to cookies successfully")
     return true
   } catch (err) {
-    console.error("DEBUG: Failed to sync session to cookies:", err)
     return false
   }
 }
@@ -99,7 +92,6 @@ export class AuthService {
       })
 
       if (error) {
-        console.error("SignIn error:", error)
         return { user: null, error: error.message }
       }
 
@@ -116,9 +108,7 @@ export class AuthService {
 
       // If user record not found (trigger failed), create it now
       if (userError || !userRecord) {
-        console.warn("User record not found, attempting to create...")
-        
-        // Extract metadata from auth user
+        // User is authenticated now, so this should work with RLS
         const userRole = (data.user.user_metadata?.role as Role) || "STUDENT"
         const userMatric = data.user.user_metadata?.matricNumber as string
         
@@ -133,7 +123,6 @@ export class AuthService {
         })
         
         if (createError) {
-          console.error("Failed to create user record:", JSON.stringify(createError, null, 2))
           // Return user-friendly error for profile not found
           return { user: null, error: "Profile not found. Please contact an administrator." }
         }

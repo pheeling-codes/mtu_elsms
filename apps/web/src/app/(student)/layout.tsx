@@ -47,8 +47,7 @@ export default function StudentLayout({
         setLoadError(null)
         
         // Sync session from localStorage to cookies (CRITICAL for middleware)
-        const synced = syncSessionToCookies()
-        console.log("DEBUG: Layout session sync:", synced)
+        syncSessionToCookies()
         
         // Longer delay for session propagation after login (1.5 seconds)
         await new Promise(resolve => setTimeout(resolve, 1500))
@@ -58,7 +57,6 @@ export default function StudentLayout({
         if (!currentUser) {
           // Retry up to 2 times before giving up
           if (retryCount < 2) {
-            console.log(`DEBUG: No user found, retrying... (${retryCount + 1}/2)`)
             setIsLoading(false)
             setTimeout(() => loadUser(retryCount + 1), 1000)
             return
@@ -78,12 +76,9 @@ export default function StudentLayout({
           return
         }
         
-        console.log("DEBUG: StudentLayout loaded user:", currentUser.id)
-        console.log("DEBUG: User loaded successfully")
         setUser(currentUser)
         setIsLoading(false)
       } catch (error) {
-        console.error("Failed to load user:", error)
         setLoadError("Failed to load account. Please try again.")
         setIsLoading(false)
       }

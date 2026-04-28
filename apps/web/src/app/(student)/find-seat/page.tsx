@@ -45,7 +45,6 @@ export default function FindSeatPage() {
         "postgres_changes",
         { event: "*", schema: "public", table: "seats" },
         (payload: { new?: Seat }) => {
-          console.log("Seat update:", payload)
           fetchSeats()
           if (selectedSeat && payload.new && payload.new.id === selectedSeat.id) {
             setSelectedSeat(payload.new)

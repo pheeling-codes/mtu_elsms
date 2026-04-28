@@ -27,11 +27,8 @@ export default function LoginPage() {
     e.preventDefault()
     setError("")
     setIsLoading(true)
-    
-    console.log("DEBUG: Starting sign in...")
 
     try {
-      console.log("DEBUG: Calling AuthService.signIn...")
       const { user, error: authError } = await AuthService.signIn({
         identifier,
         password,
@@ -39,7 +36,6 @@ export default function LoginPage() {
       })
 
       if (authError || !user) {
-        console.log("DEBUG: Auth failed:", authError)
         const errorMsg = authError || "Authentication failed"
         setError(errorMsg)
         toast({
@@ -51,26 +47,20 @@ export default function LoginPage() {
         return
       }
 
-      console.log("DEBUG: Auth successful, user:", user.id)
-
       // Sync Supabase session from localStorage to cookies (CRITICAL for middleware detection)
-      const syncResult = syncSessionToCookies()
-      console.log("DEBUG: Session sync result:", syncResult)
+      syncSessionToCookies()
 
       // Set role cookie for middleware detection - use explicit path and no domain
       const cookieValue = `user-role=${user.role}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
       document.cookie = cookieValue;
-      console.log("DEBUG: Role cookie set:", cookieValue)
       
       // Also store in localStorage as backup
       if (typeof window !== 'undefined') {
         localStorage.setItem('user-role', user.role);
-        console.log("DEBUG: Role also stored in localStorage");
       }
       
       // Show success toast with Emerald theme
       const dashboardName = user.role === "ADMIN" ? "Admin Dashboard" : "Student Dashboard"
-      console.log("DEBUG: Triggering success toast...")
       toast({
         variant: "success",
         title: "Welcome back!",
@@ -78,20 +68,16 @@ export default function LoginPage() {
       })
       
       // Step 3: Refresh router to re-run middleware with new cookies
-      console.log("DEBUG: Calling router.refresh()...")
       router.refresh()
       
       // Step 4: 1000ms delay to allow toast and session to propagate
-      console.log("DEBUG: Starting 1000ms delay...")
       await new Promise(resolve => setTimeout(resolve, 1000))
       
-      // Step 5: Navigate using window.location.href (forces full page reload, breaks async deadlocks)
+      // Step 5: Navigate to dashboard
       const dashboardUrl = user.role === "ADMIN" ? "/admin" : "/dashboard"
-      console.log("DEBUG: Starting redirect to:", dashboardUrl)
       window.location.href = dashboardUrl
       
     } catch (err) {
-      console.error("DEBUG: Login error caught:", err)
       const errorMsg = err instanceof Error ? err.message : "An unexpected error occurred"
       setError(errorMsg)
       toast({

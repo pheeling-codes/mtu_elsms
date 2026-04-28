@@ -25,7 +25,6 @@ export function clearStaleAuth(): void {
   allToClear.forEach(name => {
     document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
     document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=None; Secure`
-    console.log(`Cleared cookie: ${name}`)
   })
 
   // Clear localStorage
@@ -34,7 +33,6 @@ export function clearStaleAuth(): void {
   )
   localKeys.forEach(key => {
     localStorage.removeItem(key)
-    console.log(`Cleared localStorage: ${key}`)
   })
 
   // Clear sessionStorage
@@ -43,16 +41,11 @@ export function clearStaleAuth(): void {
   )
   sessionKeys.forEach(key => {
     sessionStorage.removeItem(key)
-    console.log(`Cleared sessionStorage: ${key}`)
   })
-
-  console.log("✅ All stale auth data cleared!")
-  console.log("Please refresh the page.")
 }
 
-// Auto-run on module load for debugging
+// Expose for debugging if needed
 if (typeof window !== "undefined") {
   // @ts-expect-error - exposing for debugging
   window.clearStaleAuth = clearStaleAuth
-  console.log("Auth clear utility loaded. Run clearStaleAuth() in console to clear cookies.")
 }

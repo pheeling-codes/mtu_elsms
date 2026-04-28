@@ -54,7 +54,6 @@ export default function StudentDashboard() {
           )
         ])
       } catch (err) {
-        console.error("DEBUG: Dashboard data fetch failed:", err)
         setDataError("Failed to load dashboard data. Click retry to try again.")
       } finally {
         setIsDataLoading(false)
@@ -103,27 +102,20 @@ export default function StudentDashboard() {
         })
       }
     } catch (err) {
-      console.error("DEBUG: fetchSeatStats error:", err)
       throw err
     }
   }
 
   const fetchActiveReservation = async () => {
-    try {
-      // Placeholder for now - would fetch from reservations table
-      setActiveReservation(null)
-    } catch (err) {
-      console.error("DEBUG: fetchActiveReservation error:", err)
-      throw err
-    }
+    // Placeholder for now - would fetch from reservations table
+    setActiveReservation(null)
   }
 
   const handleRetry = () => {
     setDataError(null)
     setIsDataLoading(true)
     Promise.all([fetchSeatStats(), fetchActiveReservation()])
-      .catch(err => {
-        console.error("DEBUG: Retry failed:", err)
+      .catch(() => {
         setDataError("Still unable to load data. Please refresh the page.")
       })
       .finally(() => setIsDataLoading(false))

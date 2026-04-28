@@ -16,15 +16,8 @@ const EXCLUDED_PATHS = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
-  // Log ALL cookies for debugging
-  const allCookies = request.cookies.getAll()
-  const cookieNames = allCookies.map(c => c.name).join(', ')
-  console.log(`DEBUG: Middleware running for path: ${pathname}`)
-  console.log(`DEBUG: All cookies: [${cookieNames}]`)
-
   // Skip middleware for excluded paths (static files, internal Next.js routes)
   if (EXCLUDED_PATHS.some(path => pathname.startsWith(path))) {
-    console.log(`DEBUG: Skipping excluded path: ${pathname}`)
     return NextResponse.next()
   }
 
@@ -36,12 +29,6 @@ export async function middleware(request: NextRequest) {
   const hasSession = checkForSession(request)
   const userRole = request.cookies.get("user-role")?.value
   
-  console.log(`DEBUG: Session found: ${hasSession}, Role: ${userRole}, IsPublic: ${isPublicRoute}`)
-  
-  // Additional debug: Log if we're about to redirect
-  if (!isPublicRoute && !hasSession) {
-    console.log(`DEBUG: WILL REDIRECT to /login - no session detected`)
-  }
 
   // If accessing auth pages while logged in, redirect to appropriate dashboard
   // BUT only if the session is actually valid (has both session AND role)
