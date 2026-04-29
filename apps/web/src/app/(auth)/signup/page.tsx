@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Eye, EyeOff, ArrowRight, GraduationCap, Shield } from "lucide-react"
+import { Eye, EyeOff, ArrowRight, GraduationCap, Shield, BookOpen, Loader2, User, Lock, Mail } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -70,11 +70,17 @@ export default function SignupPage() {
 
   return (
     <div className="w-full max-w-md space-y-8">
-      {/* Header */}
+      {/* Header - E-Library Space Branding */}
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
-        <p className="text-gray-500">
-          Register to access the E-Library seat reservation system.
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-[#10B981] rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
+            <BookOpen className="w-5 h-5 text-white" />
+          </div>
+          <span className="font-bold text-xl text-gray-900">E-Library Space</span>
+        </div>
+        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Join the Study Hub</h1>
+        <p className="text-gray-500 text-sm leading-relaxed">
+          Create your account to start reserving seats and managing your study sessions.
         </p>
       </div>
 
@@ -102,31 +108,37 @@ export default function SignupPage() {
             <Label htmlFor="matricNumber" className="text-sm font-medium text-gray-700">
               Matric Number
             </Label>
-            <Input
-              id="matricNumber"
-              type="text"
-              placeholder="e.g. MAT/19/1234"
-              value={matricNumber}
-              onChange={(e) => setMatricNumber(e.target.value)}
-              required={role === "STUDENT"}
-              className="h-12"
-            />
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Input
+                id="matricNumber"
+                type="text"
+                placeholder="e.g. MAT/19/1234"
+                value={matricNumber}
+                onChange={(e) => setMatricNumber(e.target.value)}
+                required={role === "STUDENT"}
+                className="h-12 pl-10 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#10B981] focus:ring-[#10B981]/20 transition-all"
+              />
+            </div>
           </div>
         )}
 
         <div className="space-y-2">
           <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-            {role === "STUDENT" ? "Student Email" : "Staff Email"}
+            {role === "STUDENT" ? "Institutional Email" : "Staff Email"}
           </Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder={role === "STUDENT" ? "student@university.edu" : "admin@university.edu"}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="h-12"
-          />
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Input
+              id="email"
+              type="email"
+              placeholder={role === "STUDENT" ? "student@university.edu" : "admin@university.edu"}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="h-12 pl-10 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#10B981] focus:ring-[#10B981]/20 transition-all"
+            />
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -134,6 +146,7 @@ export default function SignupPage() {
             Password
           </Label>
           <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
@@ -142,12 +155,12 @@ export default function SignupPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="h-12 pr-10"
+              className="h-12 pl-10 pr-10 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#10B981] focus:ring-[#10B981]/20 transition-all"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
@@ -158,15 +171,18 @@ export default function SignupPage() {
           <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">
             Confirm Password
           </Label>
-          <Input
-            id="confirmPassword"
-            type={showPassword ? "text" : "password"}
-            placeholder="Confirm your password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            className="h-12"
-          />
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Input
+              id="confirmPassword"
+              type={showPassword ? "text" : "password"}
+              placeholder="Confirm your password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              className="h-12 pl-10 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#10B981] focus:ring-[#10B981]/20 transition-all"
+            />
+          </div>
         </div>
 
         {error && (
@@ -184,31 +200,36 @@ export default function SignupPage() {
         <Button
           type="submit"
           disabled={isLoading}
-          className="w-full h-12 bg-[#10B981] hover:bg-[#059669] text-white font-medium"
+          className="w-full h-12 bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-lg shadow-lg shadow-emerald-200/50 transition-all hover:shadow-xl hover:shadow-emerald-200/60 active:scale-[0.98]"
         >
           {isLoading ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              Creating account...
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span className="animate-pulse">Creating account...</span>
             </span>
           ) : (
-            <span className="flex items-center gap-2">
+            <span className="flex items-center justify-center gap-2">
               Create Account
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-5 h-5" />
             </span>
           )}
         </Button>
       </form>
 
       {/* Footer */}
-      <div className="text-center text-sm text-gray-500">
-        Already have an account?{" "}
-        <Link href="/login" className="text-[#10B981] font-medium hover:text-[#059669] transition-colors">
-          Sign in
-        </Link>
+      <div className="text-center space-y-4 pt-4">
+        <div className="text-sm text-gray-500">
+          Already have an account?{" "}
+          <Link href="/login" className="text-[#10B981] font-semibold hover:text-[#059669] transition-colors">
+            Sign in
+          </Link>
+        </div>
+        <p className="text-xs text-gray-400">
+          Need help?{" "}
+          <Link href="/contact" className="text-gray-600 hover:text-gray-900 font-medium transition-colors">
+            Contact Admin
+          </Link>
+        </p>
       </div>
     </div>
   )

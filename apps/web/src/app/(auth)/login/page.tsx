@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Eye, EyeOff, ArrowRight, GraduationCap, Shield, BookOpen, Loader2 } from "lucide-react"
+import { Eye, EyeOff, ArrowRight, GraduationCap, Shield, BookOpen, Loader2, User, Lock } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -94,17 +94,17 @@ export default function LoginPage() {
 
   return (
     <div className="w-full max-w-md space-y-8">
-      {/* Header */}
+      {/* Header - E-Library Space Branding */}
       <div className="space-y-2">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-10 h-10 bg-[#10B981] rounded-lg flex items-center justify-center">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-[#10B981] rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
             <BookOpen className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-xl text-gray-900">ELSMS</span>
+          <span className="font-bold text-xl text-gray-900">E-Library Space</span>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Welcome Back</h1>
-        <p className="text-gray-500">
-          Log in with your credentials to access the E-Library Space reservation system.
+        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Welcome Back</h1>
+        <p className="text-gray-500 text-sm leading-relaxed">
+          Log in with your academic credentials to access the seat reservation system.
         </p>
       </div>
 
@@ -131,15 +131,18 @@ export default function LoginPage() {
           <Label htmlFor="identifier" className="text-sm font-medium text-gray-700">
             {identifierLabel}
           </Label>
-          <Input
-            id="identifier"
-            type="text"
-            placeholder={identifierPlaceholder}
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-            required
-            className="h-12"
-          />
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Input
+              id="identifier"
+              type="text"
+              placeholder={identifierPlaceholder}
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              required
+              className="h-12 pl-10 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#10B981] focus:ring-[#10B981]/20 transition-all"
+            />
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -149,12 +152,13 @@ export default function LoginPage() {
             </Label>
             <Link
               href="/forgot-password"
-              className="text-sm text-[#10B981] hover:text-[#059669] transition-colors"
+              className="text-sm text-[#10B981] hover:text-[#059669] font-medium transition-colors"
             >
               Forgot Password?
             </Link>
           </div>
           <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
@@ -162,12 +166,12 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="h-12 pr-10"
+              className="h-12 pl-10 pr-10 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#10B981] focus:ring-[#10B981]/20 transition-all"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
@@ -183,32 +187,35 @@ export default function LoginPage() {
         <Button
           type="submit"
           disabled={isLoading}
-          className="w-full h-12 bg-[#10B981] hover:bg-[#059669] text-white font-medium"
+          className="w-full h-12 bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-lg shadow-lg shadow-emerald-200/50 transition-all hover:shadow-xl hover:shadow-emerald-200/60 active:scale-[0.98]"
         >
           {isLoading ? (
             <span className="flex items-center justify-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Signing in...
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span className="animate-pulse">Signing in...</span>
             </span>
           ) : (
             <span className="flex items-center justify-center gap-2">
               Login to Dashboard
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-5 h-5" />
             </span>
           )}
         </Button>
       </form>
 
       {/* Footer */}
-      <div className="text-center space-y-2">
+      <div className="text-center space-y-4 pt-4">
         <div className="text-sm text-gray-500">
           Don't have an account?{" "}
-          <Link href="/signup" className="text-[#10B981] font-medium hover:text-[#059669] transition-colors">
+          <Link href="/signup" className="text-[#10B981] font-semibold hover:text-[#059669] transition-colors">
             Sign up
           </Link>
         </div>
-        <p className="text-xs text-gray-400 mt-4">
-          © {new Date().getFullYear()} E-Library Space Management System
+        <p className="text-xs text-gray-400">
+          Having trouble logging in?{" "}
+          <Link href="/contact" className="text-gray-600 hover:text-gray-900 font-medium transition-colors">
+            Contact Admin
+          </Link>
         </p>
       </div>
     </div>

@@ -11,13 +11,12 @@ export function AuthLayout({ children }: AuthLayoutProps) {
   return (
     <div className="min-h-screen flex">
       {/* Left Section - Library Image with Overlay */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gray-900">
-        {/* Background Image Placeholder - in production use actual library image */}
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900">
-          <div className="absolute inset-0 opacity-30">
-            <div className="w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-600 via-gray-800 to-gray-900" />
-          </div>
-        </div>
+      <div 
+        className="hidden lg:flex lg:w-1/2 relative bg-gray-900 bg-cover bg-center bg-no-repeat" 
+        style={{ backgroundImage: `url('/library-bg.jpg')` }}
+      >
+        {/* Dark overlay for text readability */}
+        <div className="absolute inset-0 bg-black/40" />
         
         {/* Content Overlay */}
         <div className="relative z-10 flex flex-col justify-end p-12 pb-16">
