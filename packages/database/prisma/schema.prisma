@@ -9,11 +9,12 @@ datasource db {
 }
 
 model User {
-  id           String        @id @db.Uuid
-  matricNumber String        @unique
-  role         Role          @default(STUDENT)
-  createdAt    DateTime      @default(now()) @map("createdAt")
-  updatedAt    DateTime      @updatedAt @map("updatedAt")
+  id           String         @id @db.Uuid
+  matricNumber String         @unique
+  role         Role           @default(STUDENT)
+  avatarUrl    String?
+  createdAt    DateTime       @default(now()) @map("createdAt")
+  updatedAt    DateTime       @updatedAt @map("updatedAt")
   reservations Reservation[]
 
   @@map("users")

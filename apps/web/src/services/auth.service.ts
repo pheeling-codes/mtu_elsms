@@ -56,6 +56,7 @@ export interface AuthUser {
   email: string
   role: Role
   matricNumber?: string
+  avatarUrl?: string
 }
 
 export class AuthService {
@@ -245,17 +246,48 @@ export class AuthService {
     
     if (!user) return null
 
-    const { data: userRecord } = await supabase
-      .from("users")
-      .select("role, matricNumber")
-      .eq("id", user.id)
-      .single()
+    try {
+      // Try with avatarUrl column (may not exist yet in DB)
+      const { data: userRecord, error } = await supabase
+        .from("users")
+        .select("role, matricNumber, avatarUrl")
+        .eq("id", user.id)
+        .single()
 
-    return {
-      id: user.id,
-      email: user.email!,
-      role: (userRecord?.role as Role) || "STUDENT",
-      matricNumber: userRecord?.matricNumber,
+      if (error) {
+        // If avatarUrl column doesn't exist, try without it
+        if (error.message?.includes("avatarUrl") || error.message?.includes("column")) {
+          const { data: basicRecord } = await supabase
+            .from("users")
+            .select("role, matricNumber")
+            .eq("id", user.id)
+            .single()
+          
+          return {
+            id: user.id,
+            email: user.email!,
+            role: (basicRecord?.role as Role) || "STUDENT",
+            matricNumber: basicRecord?.matricNumber,
+          }
+        }
+        throw error
+      }
+
+      return {
+        id: user.id,
+        email: user.email!,
+        role: (userRecord?.role as Role) || "STUDENT",
+        matricNumber: userRecord?.matricNumber,
+        avatarUrl: userRecord?.avatarUrl,
+      }
+    } catch (error) {
+      console.error("getCurrentUser error:", error)
+      // Return basic user info even if DB query fails
+      return {
+        id: user.id,
+        email: user.email!,
+        role: "STUDENT",
+      }
     }
   }
 
