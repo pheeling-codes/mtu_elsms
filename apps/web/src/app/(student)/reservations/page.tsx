@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { ReservationsSkeleton } from "@/components/ui/skeleton-reservations"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Dialog,
@@ -27,6 +28,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
+import { supabase } from "@/lib/supabase"
+import { toast } from "sonner"
 
 interface Reservation {
   id: string
@@ -131,9 +134,76 @@ export default function ReservationsPage() {
   const [activeTab, setActiveTab] = useState("upcoming")
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [reservations, setReservations] = useState<Reservation[]>([])
 
-  // Fetch reservations (mock for now)
-  const reservations = useMemo(() => mockReservations, [])
+  // Fetch reservations from Supabase
+  useEffect(() => {
+    const fetchReservations = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          setIsLoading(false)
+          router.push('/auth/signin')
+          return
+        }
+
+        const { data, error } = await supabase
+          .from('reservations')
+          .select(`
+            id,
+            seatId,
+            startTime,
+            endTime,
+            status,
+            seat:seats!inner(id, seatNumber, zoneId, features)
+          `)
+          .eq('userId', user.id)
+          .order('startTime', { ascending: false })
+
+        if (error) throw error
+
+        // Fetch zones for lookup
+        const { data: zonesData } = await supabase.from('zones').select('id, name')
+        const zoneMap = new Map((zonesData || []).map((z: { id: string; name: string }) => [z.id, z.name]))
+
+        // Transform data to match interface
+        const transformed = (data || []).map((r: any) => ({
+          id: r.id,
+          seatId: r.seatId,
+          seatName: `Seat #${r.seat?.seatNumber || 'Unknown'}`,
+          zone: zoneMap.get(r.seat?.zoneId) || 'Unknown',
+          date: new Date(r.startTime).toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            month: 'short', 
+            day: 'numeric' 
+          }),
+          startTime: new Date(r.startTime).toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false 
+          }),
+          endTime: new Date(r.endTime).toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false 
+          }),
+          status: r.status.toLowerCase() as "active" | "upcoming" | "past" | "reserved",
+          features: r.seat?.features || [],
+          checkInDeadline: new Date(new Date(r.startTime).getTime() + 15 * 60000)
+        }))
+
+        setReservations(transformed)
+      } catch (error) {
+        console.error('Error fetching reservations:', error)
+        toast.error('Failed to load reservations')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchReservations()
+  }, [])
 
   // Count by status
   const counts = useMemo(() => {
@@ -158,14 +228,91 @@ export default function ReservationsPage() {
   // Handle check in
   const handleCheckIn = async () => {
     // TODO: Implement Supabase mutation
-    console.log("Checking in...", selectedReservation?.id)
     setIsDialogOpen(false)
   }
 
-  // Handle cancel
+  // Handle cancel with No-Show logic
   const handleCancel = async (reservationId: string) => {
-    // TODO: Implement Supabase mutation
-    console.log("Cancelling...", reservationId)
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error("Authentication Required", {
+          description: "Please sign in to cancel reservations.",
+        })
+        return
+      }
+
+      // Get the reservation details to find the seat
+      const { data: reservation, error: fetchError } = await supabase
+        .from('reservations')
+        .select('seatId, status')
+        .eq('id', reservationId)
+        .single()
+
+      if (fetchError || !reservation) {
+        toast.error("Reservation Not Found", {
+          description: "Unable to find the reservation to cancel.",
+        })
+        return
+      }
+
+      // Update reservation status to CANCELLED
+      const { error: cancelError } = await supabase
+        .from('reservations')
+        .update({ status: 'CANCELLED' })
+        .eq('id', reservationId)
+
+      if (cancelError) {
+        throw cancelError
+      }
+
+      // Increment noShowCount in user profile (recorded as no-show)
+      const { error: profileError } = await supabase.rpc('increment_noshow_count', {
+        user_id: user.id
+      })
+
+      if (profileError) {
+        // Fallback: try to update directly if RPC doesn't exist
+        const { data: profile } = await supabase
+          .from('users')
+          .select('noShowCount')
+          .eq('id', user.id)
+          .single()
+        
+        await supabase
+          .from('users')
+          .update({ noShowCount: (profile?.noShowCount || 0) + 1 })
+          .eq('id', user.id)
+      }
+
+      // Set seat back to AVAILABLE
+      const { error: seatError } = await supabase
+        .from('seats')
+        .update({ status: 'AVAILABLE' })
+        .eq('id', reservation.seatId)
+
+      if (seatError) {
+        throw seatError
+      }
+
+      toast.success("Reservation Cancelled", {
+        description: "Your reservation has been cancelled. This has been recorded as a no-show.",
+      })
+
+      setIsDialogOpen(false)
+      
+      // Refresh the page to show updated data
+      window.location.reload()
+    } catch (error) {
+      toast.error("Cancellation Failed", {
+        description: error instanceof Error ? error.message : "Please try again later.",
+      })
+    }
+  }
+
+  if (isLoading) {
+    return <ReservationsSkeleton />
   }
 
   // Status badge component
@@ -328,7 +475,7 @@ export default function ReservationsPage() {
                 <p className="text-slate-500 mb-4">
                   {activeTab === "past"
                     ? "Your reservation history will appear here."
-                    : `You don't have any ${activeTab} reservations at the moment.`}
+                    : "You haven't made any study plans yet. Find a seat to get started."}
                 </p>
                 {activeTab !== "past" && (
                   <Button

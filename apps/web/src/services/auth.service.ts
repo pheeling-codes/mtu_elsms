@@ -242,9 +242,12 @@ export class AuthService {
   }
 
   static async getCurrentUser(): Promise<AuthUser | null> {
-    const { data: { user } } = await supabase.auth.getUser()
+    // getSession() triggers auto-refresh of expired tokens
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
     
-    if (!user) return null
+    if (sessionError || !session?.user) return null
+    
+    const user = session.user
 
     try {
       // Try with avatarUrl column (may not exist yet in DB)

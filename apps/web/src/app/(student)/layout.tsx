@@ -433,7 +433,7 @@ export default function StudentLayout({
                 {/* Real Avatar Image */}
                 <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-slate-100">
                   <Image
-                    src={user.avatarUrl || `https://i.pravatar.cc/150?u=${user.email || "gideon"}`}
+                    src={user.avatarUrl || `https://i.pravatar.cc/150?u=${user.email || user.id}`}
                     alt="Profile"
                     fill
                     sizes="40px"

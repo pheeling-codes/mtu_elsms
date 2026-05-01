@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { 
@@ -22,6 +22,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { supabase } from "@/lib/supabase"
 import { AuthService, type AuthUser } from "@/services/auth.service"
+import { useAuth } from "@/hooks/useAuth"
+import { DashboardSkeleton } from "@/components/ui/skeleton-dashboard"
+import { toast } from "@/lib/toast-utils"
+import { useRealtime } from "@/hooks/useRealtime"
 
 interface SeatStats {
   available: number
@@ -47,14 +51,12 @@ export default function StudentDashboard() {
   const [isDataLoading, setIsDataLoading] = useState(true)
   const [user, setUser] = useState<AuthUser | null>(null)
 
-  // Fetch user and stats
-  useEffect(() => {
-    const loadData = async () => {
-      setIsDataLoading(true)
-      try {
-        // Fetch current user
-        const currentUser = await AuthService.getCurrentUser()
-        setUser(currentUser)
+  const fetchStats = useCallback(async () => {
+    setIsDataLoading(true)
+    try {
+      // Fetch current user
+      const currentUser = await AuthService.getCurrentUser()
+      setUser(currentUser)
 
         // Fetch seat stats
         await fetchSeatStats()
@@ -73,9 +75,11 @@ export default function StudentDashboard() {
       } finally {
         setIsDataLoading(false)
       }
-    }
-    loadData()
   }, [])
+
+  useEffect(() => {
+    fetchStats()
+  }, [fetchStats])
 
   // Real-time stats fetching
   const fetchSeatStats = async () => {
@@ -126,15 +130,29 @@ export default function StudentDashboard() {
     return () => clearInterval(interval)
   }, [activeReservation])
 
+  // Real-time subscription to seats table
+  useRealtime({
+    table: "seats",
+    event: "*",
+    onChange: () => {
+      // Refresh stats when seats change
+      fetchStats()
+    },
+  })
+
+  // Real-time subscription to reservations table
+  useRealtime({
+    table: "reservations",
+    event: "*",
+    filter: user?.id ? `userId=eq.${user.id}` : undefined,
+    onChange: () => {
+      // Refresh stats and active reservation when user's reservations change
+      fetchStats()
+    },
+  })
+
   if (isDataLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
-          <p className="text-slate-500">Loading your dashboard...</p>
-        </div>
-      </div>
-    )
+    return <DashboardSkeleton />
   }
 
   return (

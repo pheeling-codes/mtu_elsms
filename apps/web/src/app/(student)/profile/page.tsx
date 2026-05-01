@@ -312,6 +312,10 @@ export default function ProfilePage() {
   const handleLogout = async () => {
     setLogoutDialogOpen(false)
     await AuthService.signOut()
+    toast({
+      title: "Logged out successfully",
+      description: "You have been logged out of your account.",
+    })
     router.push("/login")
   }
 

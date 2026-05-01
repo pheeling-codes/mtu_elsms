@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { 
   ZoomIn, 
   ZoomOut, 
@@ -22,17 +23,18 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox-simple"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { FindSeatSkeleton } from "@/components/ui/skeleton-findseat"
 import { supabase } from "@/lib/supabase"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 
 interface Seat {
   id: string
-  name: string
-  zone: string
+  seatNumber: number
+  zoneId: string
   status: "AVAILABLE" | "OCCUPIED" | "RESERVED"
-  features: string[]
-  x: number
-  y: number
+  x?: number
+  y?: number
+  features?: string[]
 }
 
 interface Zone {
@@ -93,11 +95,12 @@ const DEMO_SEATS: Seat[] = [
 ]
 
 export default function FindSeatPage() {
-  const { toast } = useToast()
-  const [seats, setSeats] = useState<Seat[]>(DEMO_SEATS)
-  const [zones] = useState<Zone[]>(ZONES)
+  const router = useRouter()
+  const [seats, setSeats] = useState<Seat[]>([])
+  const [zones, setZones] = useState<Zone[]>([])
   const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
   const [isReservationOpen, setIsReservationOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   
   // Map view state
   const [scale, setScale] = useState(1)
@@ -129,6 +132,40 @@ export default function FindSeatPage() {
   const [startTime, setStartTime] = useState("10:00")
   const [endTime, setEndTime] = useState("12:00")
   const [isReserving, setIsReserving] = useState(false)
+
+  // Fetch seats and zones from database
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch seats
+        const { data: seatsData, error: seatsError } = await supabase
+          .from('seats')
+          .select('*')
+          .order('seatNumber')
+        
+        if (seatsError) throw seatsError
+        
+        // Fetch zones
+        const { data: zonesData, error: zonesError } = await supabase
+          .from('zones')
+          .select('*')
+        
+        if (zonesError) throw zonesError
+        
+        setSeats(seatsData || [])
+        setZones(zonesData || [])
+      } catch (error) {
+        console.error('Error fetching data:', error)
+        toast.error('Failed to load seats', {
+          description: 'Please try refreshing the page.',
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchData()
+  }, [])
 
   // Real-time seat updates
   useEffect(() => {
@@ -165,16 +202,10 @@ export default function FindSeatPage() {
 
       // Zone filter
       if (!filters.zones.all) {
-        if (seat.zone === "quiet" && !filters.zones.quiet) return false
-        if (seat.zone === "group" && !filters.zones.group) return false
-        if (seat.zone === "charging" && !filters.zones.charging) return false
+        if (seat.zoneId === "quiet" && !filters.zones.quiet) return false
+        if (seat.zoneId === "group" && !filters.zones.group) return false
+        if (seat.zoneId === "charging" && !filters.zones.charging) return false
       }
-
-      // Features filter
-      if (filters.features.power && !seat.features.includes("Power Outlet")) return false
-      if (filters.features.window && !seat.features.includes("Window View")) return false
-      if (filters.features.monitors && !seat.features.includes("Dual Monitors")) return false
-      if (filters.features.ergonomic && !seat.features.includes("Ergonomic Chair")) return false
 
       return true
     })
@@ -244,36 +275,87 @@ export default function FindSeatPage() {
       setSelectedSeat(seat)
       setIsReservationOpen(true)
     } else {
-      toast({
-        variant: "destructive",
-        title: "Seat Unavailable",
+      toast.error("Seat Unavailable", {
         description: `This seat is currently ${seat.status.toLowerCase()}.`,
       })
     }
   }
 
   const handleReserve = async () => {
-    if (!selectedSeat) return
+    console.log("[handleReserve] Starting...")
+    if (!selectedSeat) {
+      console.log("[handleReserve] No seat selected, returning")
+      return
+    }
     
     setIsReserving(true)
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      console.log("[handleReserve] Getting user...")
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      console.log("[handleReserve] User:", user)
+      if (!user) {
+        toast.error("Authentication Required", {
+          description: "Please sign in to make a reservation.",
+        })
+        return
+      }
+
+      // Calculate times
+      const now = new Date()
+      const startDateTime = new Date(now)
+      const [startHour, startMinute] = startTime.split(':').map(Number)
+      startDateTime.setHours(startHour, startMinute, 0, 0)
       
-      toast({
-        title: "Reservation Successful",
-        description: `Seat ${selectedSeat.name} reserved from ${startTime} to ${endTime}`,
+      const endDateTime = new Date(now)
+      const [endHour, endMinute] = endTime.split(':').map(Number)
+      endDateTime.setHours(endHour, endMinute, 0, 0)
+      
+      // Create reservation record
+      const { data: reservation, error: reservationError } = await supabase
+        .from('reservations')
+        .insert({
+          userId: user.id,
+          seatId: selectedSeat.id,
+          startTime: startDateTime.toISOString(),
+          endTime: endDateTime.toISOString(),
+          status: 'UPCOMING',
+        })
+        .select()
+        .single()
+
+      if (reservationError) {
+        throw reservationError
+      }
+
+      // Update seat status to RESERVED
+      const { error: seatError } = await supabase
+        .from('seats')
+        .update({ status: 'RESERVED' })
+        .eq('id', selectedSeat.id)
+
+      if (seatError) {
+        throw seatError
+      }
+      
+      console.log("[handleReserve] Reservation created successfully")
+      
+      toast.success("Reservation Successful", {
+        description: `Seat #${selectedSeat.seatNumber} reserved from ${startTime} to ${endTime}`,
       })
       
       setIsReservationOpen(false)
       setSelectedSeat(null)
+      
+      // Navigate to reservations page to show the new booking
+      router.push("/reservations")
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Reservation Failed",
-        description: "Please try again later.",
+      console.error("[handleReserve] Error:", error)
+      toast.error("Reservation Failed", {
+        description: error instanceof Error ? error.message : "Please try again later.",
       })
     } finally {
+      console.log("[handleReserve] Finally block - setting isReserving to false")
       setIsReserving(false)
     }
   }
@@ -302,6 +384,11 @@ export default function FindSeatPage() {
   const resetView = () => {
     setScale(1)
     setPosition({ x: 0, y: 0 })
+  }
+
+  // Show skeleton while loading
+  if (isLoading) {
+    return <FindSeatSkeleton />
   }
 
   return (
@@ -336,26 +423,29 @@ export default function FindSeatPage() {
           <svg 
             width="100%" 
             height="100%" 
-            viewBox="0 0 900 600"
+            viewBox="0 0 1080 520"
             preserveAspectRatio="xMidYMid meet"
             style={{
               transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
               transformOrigin: 'center center'
             }}
           >
-            {/* Zone Backgrounds */}
+            {/* Zone Backgrounds - Three distinct vertical columns */}
             <g>
-            {/* Quiet Zone */}
-            <rect x="50" y="50" width="400" height="200" fill="#E0F2FE" rx="12" opacity="0.5" />
-            <text x="70" y="80" className="text-xs font-semibold fill-slate-400 uppercase tracking-wider">QUIET ZONE</text>
-            
-            {/* Group Zone */}
-            <rect x="500" y="50" width="350" height="200" fill="#F3E8FF" rx="12" opacity="0.5" />
-            <text x="520" y="80" className="text-xs font-semibold fill-slate-400 uppercase tracking-wider">GROUP ZONE</text>
-            
-            {/* Charging Zone */}
-            <rect x="50" y="300" width="600" height="250" fill="#ECFDF5" rx="12" opacity="0.5" />
-            <text x="70" y="330" className="text-xs font-semibold fill-slate-400 uppercase tracking-wider">CHARGING ZONE</text>
+              {/* Quiet Zone - Left column */}
+              <rect x="50" y="50" width="300" height="400" fill="#E0F2FE" rx="12" opacity="0.6" stroke="#bae6fd" strokeWidth="2" />
+              <text x="200" y="80" textAnchor="middle" className="text-sm font-bold fill-slate-600 uppercase tracking-wider">QUIET ZONE</text>
+              <text x="200" y="100" textAnchor="middle" className="text-xs fill-slate-400">Silent Study Area</text>
+              
+              {/* Group Zone - Middle column */}
+              <rect x="380" y="50" width="300" height="400" fill="#F3E8FF" rx="12" opacity="0.6" stroke="#e9d5ff" strokeWidth="2" />
+              <text x="530" y="80" textAnchor="middle" className="text-sm font-bold fill-slate-600 uppercase tracking-wider">GROUP ZONE</text>
+              <text x="530" y="100" textAnchor="middle" className="text-xs fill-slate-400">Collaborative Space</text>
+              
+              {/* Charging Zone - Right column */}
+              <rect x="710" y="50" width="300" height="400" fill="#ECFDF5" rx="12" opacity="0.6" stroke="#a7f3d0" strokeWidth="2" />
+              <text x="860" y="80" textAnchor="middle" className="text-sm font-bold fill-slate-600 uppercase tracking-wider">CHARGING ZONE</text>
+              <text x="860" y="100" textAnchor="middle" className="text-xs fill-slate-400">Power + USB Available</text>
             </g>
 
             {/* Seats */}
@@ -383,18 +473,8 @@ export default function FindSeatPage() {
                       textAnchor="middle"
                       className="text-sm font-semibold fill-white pointer-events-none"
                     >
-                      {seat.name}
+                      #{seat.seatNumber}
                     </text>
-                    {/* Power Outlet Indicator */}
-                    {seat.features.includes("Power Outlet") && (
-                      <circle
-                        cx={seat.x + 15}
-                        cy={seat.y - 15}
-                        r="5"
-                        fill="white"
-                        className="pointer-events-none"
-                      />
-                    )}
                   </g>
                 )
               })}
@@ -666,13 +746,13 @@ export default function FindSeatPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-900">Seat {selectedSeat.name}</h2>
+                    <h2 className="text-2xl font-bold text-slate-900">Seat #{selectedSeat.seatNumber}</h2>
                     <div className="flex items-center gap-2 mt-2">
                       {getStatusBadge(selectedSeat.status)}
                       <Badge variant="secondary" className="text-slate-600">
-                        {selectedSeat.zone === "quiet" && "Quiet Zone"}
-                        {selectedSeat.zone === "group" && "Group Zone"}
-                        {selectedSeat.zone === "charging" && "Charging Zone"}
+                        {selectedSeat.zoneId === "quiet" && "Quiet Zone"}
+                        {selectedSeat.zoneId === "group" && "Group Zone"}
+                        {selectedSeat.zoneId === "charging" && "Charging Zone"}
                       </Badge>
                     </div>
                   </div>
