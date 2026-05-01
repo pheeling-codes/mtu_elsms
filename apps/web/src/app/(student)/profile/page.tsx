@@ -105,49 +105,136 @@ export default function ProfilePage() {
 
   // Load user data and analytics
   useEffect(() => {
-    const loadData = async () => {
+    const fetchUserData = async () => {
       try {
-        const currentUser = await AuthService.getCurrentUser()
-        setUser(currentUser)
-
-        if (currentUser) {
-          // Fetch analytics from Supabase
-          const { data: reservations } = await supabase
-            .from("reservations")
-            .select("*")
-            .eq("user_id", currentUser.id)
-
-          if (reservations) {
-            const typedReservations = reservations as Reservation[]
-            const totalBookings = typedReservations.length
-            const hoursSpent = typedReservations.reduce((acc: number, r: Reservation) => {
-              const start = new Date(r.start_time)
-              const end = new Date(r.end_time)
-              const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
-              return acc + hours
-            }, 0)
-            const noShows = typedReservations.filter((r: Reservation) => r.status === "no_show").length
-
-            setAnalytics({
-              totalBookings,
-              hoursSpent: Math.round(hoursSpent),
-              noShows,
-            })
-          }
+        setLoading(true)
+        console.log('[Profile] Fetching session...')
+        
+        // Use getSession() for auto token refresh
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        
+        if (sessionError) {
+          console.error('[Profile] Session error:', sessionError)
+          setLoading(false)
+          router.push('/login')
+          return
         }
+        
+        if (!session?.user) {
+          console.log('[Profile] No session user found')
+          setLoading(false)
+          router.push('/login')
+          return
+        }
+        
+        const authUser = session.user
+        console.log('[Profile] Auth user:', authUser.id, authUser.email)
+
+        // Fetch full user record from database
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("id, matricNumber, avatarUrl, role")
+          .eq("id", authUser.id)
+          .single()
+
+        if (userError) {
+          console.error('[Profile] User data fetch error:', userError)
+          // Don't redirect - show error state instead
+          setLoading(false)
+          toast({
+            title: "Error loading profile",
+            description: "Could not fetch your profile data. Please try again.",
+            variant: "destructive"
+          })
+          return
+        }
+
+        if (!userData) {
+          console.log('[Profile] No user data found in database')
+          // Create user record if it doesn't exist
+          const { error: createError } = await supabase.from("users").insert({
+            id: authUser.id,
+            matricNumber: authUser.user_metadata?.matricNumber || 'TEMP-' + authUser.id.substring(0, 8),
+            role: 'STUDENT',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          })
+          
+          if (createError) {
+            console.error('[Profile] Failed to create user record:', createError)
+            setLoading(false)
+            toast({
+              title: "Profile error",
+              description: "Could not create your profile. Please contact support.",
+              variant: "destructive"
+            })
+            return
+          }
+          
+          // Retry fetching user data
+          const { data: newUserData } = await supabase
+            .from("users")
+            .select("id, matricNumber, avatarUrl, role")
+            .eq("id", authUser.id)
+            .single()
+          
+          if (newUserData) {
+            const fullUser = {
+              ...authUser,
+              ...newUserData,
+              email: authUser.email
+            }
+            setUser(fullUser)
+          }
+        } else {
+          console.log('[Profile] User data found:', userData)
+          // Merge auth user with database user data (email from auth session)
+          const fullUser = {
+            ...authUser,
+            ...userData,
+            email: authUser.email
+          }
+          setUser(fullUser)
+        }
+
+        // Fetch analytics from Supabase
+        const { data: reservations } = await supabase
+          .from("reservations")
+          .select("*")
+          .eq("user_id", authUser.id)
+
+        if (reservations) {
+          const typedReservations = reservations as Reservation[]
+          const totalBookings = typedReservations.length
+          const hoursSpent = typedReservations.reduce((acc: number, r: Reservation) => {
+            const start = new Date(r.start_time)
+            const end = new Date(r.end_time)
+            const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+            return acc + hours
+          }, 0)
+          const noShows = typedReservations.filter((r: Reservation) => r.status === "no_show").length
+
+          setAnalytics({
+            totalBookings,
+            hoursSpent: Math.round(hoursSpent),
+            noShows,
+          })
+        }
+        
+        setLoading(false)
+        console.log('[Profile] Profile loaded successfully')
       } catch (error) {
-        console.error("Error loading profile:", error)
+        console.error('[Profile] Unexpected error:', error)
+        setLoading(false)
         toast({
           title: "Error",
-          description: "Failed to load profile data",
-          variant: "destructive",
+          description: "An unexpected error occurred. Please try again.",
+          variant: "destructive"
         })
-      } finally {
-        setLoading(false)
       }
     }
 
-    loadData()
+    fetchUserData()
   }, [toast])
 
   // Handle avatar upload with cropping
@@ -354,10 +441,11 @@ export default function ProfilePage() {
     return <ProfileSkeleton />
   }
 
-  if (!user) {
+  if (!user && !loading) {
+    // Redirect handled in useEffect, show loading state while redirect happens
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-slate-500">Failed to load profile</p>
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -380,7 +468,7 @@ export default function ProfilePage() {
                 className="w-28 h-28 rounded-full overflow-hidden bg-emerald-50 flex items-center justify-center cursor-pointer group"
                 onClick={handleAvatarClick}
               >
-                {user.avatarUrl ? (
+                {user?.avatarUrl ? (
                   <Image
                     src={user.avatarUrl}
                     alt="Profile"
@@ -418,9 +506,9 @@ export default function ProfilePage() {
               <div className="flex items-start justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">
-                    {user.matricNumber || user.email.split("@")[0]}
+                    {user?.matricNumber || user?.email?.split("@")[0] || 'Guest'}
                   </h2>
-                  <p className="text-slate-500">{user.role}</p>
+                  <p className="text-slate-500">{user?.role || 'Student'}</p>
                 </div>
                 <Button variant="outline" size="sm">
                   <Pencil className="w-4 h-4 mr-2" />

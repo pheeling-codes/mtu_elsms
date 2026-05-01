@@ -74,7 +74,7 @@ export default function LoginPage() {
       await new Promise(resolve => setTimeout(resolve, 1000))
       
       // Step 5: Navigate to dashboard
-      const dashboardUrl = user.role === "ADMIN" ? "/admin" : "/dashboard"
+      const dashboardUrl = user.role === "ADMIN" ? "/admin/dashboard" : "/dashboard"
       window.location.href = dashboardUrl
       
     } catch (err) {
