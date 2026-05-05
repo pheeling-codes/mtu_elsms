@@ -29,7 +29,7 @@ import { toast } from "sonner"
 
 interface Seat {
   id: string
-  seatNumber: number
+  seatNumber: string
   zoneId: string
   status: "AVAILABLE" | "OCCUPIED" | "RESERVED"
   x?: number
@@ -54,44 +54,44 @@ const ZONES: Zone[] = [
 // Demo seat data with positions
 const DEMO_SEATS: Seat[] = [
   // Quiet Zone - A1-A12
-  { id: "a1", name: "A1", zone: "quiet", status: "AVAILABLE", features: ["Power Outlet", "Window View"], x: 100, y: 100 },
-  { id: "a2", name: "A2", zone: "quiet", status: "OCCUPIED", features: ["Power Outlet"], x: 160, y: 100 },
-  { id: "a3", name: "A3", zone: "quiet", status: "RESERVED", features: ["Ergonomic Chair"], x: 100, y: 160 },
-  { id: "a4", name: "A4", zone: "quiet", status: "AVAILABLE", features: ["Power Outlet", "Window View"], x: 160, y: 160 },
-  { id: "a5", name: "A5", zone: "quiet", status: "AVAILABLE", features: ["Dual Monitors"], x: 300, y: 100 },
-  { id: "a6", name: "A6", zone: "quiet", status: "AVAILABLE", features: ["Power Outlet"], x: 360, y: 100 },
-  { id: "a7", name: "A7", zone: "quiet", status: "OCCUPIED", features: ["Window View"], x: 300, y: 160 },
-  { id: "a8", name: "A8", zone: "quiet", status: "AVAILABLE", features: ["Ergonomic Chair", "Power Outlet"], x: 360, y: 160 },
-  { id: "a9", name: "A9", zone: "quiet", status: "OCCUPIED", features: ["Power Outlet"], x: 500, y: 100 },
-  { id: "a10", name: "A10", zone: "quiet", status: "OCCUPIED", features: ["Window View"], x: 560, y: 100 },
-  { id: "a11", name: "A11", zone: "quiet", status: "RESERVED", features: ["Dual Monitors"], x: 500, y: 160 },
-  { id: "a12", name: "A12", zone: "quiet", status: "OCCUPIED", features: ["Ergonomic Chair"], x: 560, y: 160 },
+  { id: "a1", seatNumber: "A1", zoneId: "quiet", status: "AVAILABLE", features: ["Power Outlet", "Window View"], x: 100, y: 100 },
+  { id: "a2", seatNumber: "A2", zoneId: "quiet", status: "OCCUPIED", features: ["Power Outlet"], x: 160, y: 100 },
+  { id: "a3", seatNumber: "A3", zoneId: "quiet", status: "RESERVED", features: ["Ergonomic Chair"], x: 100, y: 160 },
+  { id: "a4", seatNumber: "A4", zoneId: "quiet", status: "AVAILABLE", features: ["Power Outlet", "Window View"], x: 160, y: 160 },
+  { id: "a5", seatNumber: "A5", zoneId: "quiet", status: "AVAILABLE", features: ["Dual Monitors"], x: 300, y: 100 },
+  { id: "a6", seatNumber: "A6", zoneId: "quiet", status: "AVAILABLE", features: ["Power Outlet"], x: 360, y: 100 },
+  { id: "a7", seatNumber: "A7", zoneId: "quiet", status: "OCCUPIED", features: ["Window View"], x: 300, y: 160 },
+  { id: "a8", seatNumber: "A8", zoneId: "quiet", status: "AVAILABLE", features: ["Ergonomic Chair", "Power Outlet"], x: 360, y: 160 },
+  { id: "a9", seatNumber: "A9", zoneId: "quiet", status: "OCCUPIED", features: ["Power Outlet"], x: 500, y: 100 },
+  { id: "a10", seatNumber: "A10", zoneId: "quiet", status: "OCCUPIED", features: ["Window View"], x: 560, y: 100 },
+  { id: "a11", seatNumber: "A11", zoneId: "quiet", status: "RESERVED", features: ["Dual Monitors"], x: 500, y: 160 },
+  { id: "a12", seatNumber: "A12", zoneId: "quiet", status: "OCCUPIED", features: ["Ergonomic Chair"], x: 560, y: 160 },
   
   // Group Zone - G1-G4
-  { id: "g1", name: "G1", zone: "group", status: "AVAILABLE", features: ["Power Outlet", "Dual Monitors"], x: 700, y: 100 },
-  { id: "g2", name: "G2", zone: "group", status: "AVAILABLE", features: ["Power Outlet"], x: 700, y: 160 },
-  { id: "g3", name: "G3", zone: "group", status: "AVAILABLE", features: ["Window View"], x: 760, y: 100 },
-  { id: "g4", name: "G4", zone: "group", status: "AVAILABLE", features: ["Ergonomic Chair"], x: 760, y: 160 },
+  { id: "g1", seatNumber: "G1", zoneId: "group", status: "AVAILABLE", features: ["Power Outlet", "Dual Monitors"], x: 700, y: 100 },
+  { id: "g2", seatNumber: "G2", zoneId: "group", status: "AVAILABLE", features: ["Power Outlet"], x: 700, y: 160 },
+  { id: "g3", seatNumber: "G3", zoneId: "group", status: "AVAILABLE", features: ["Window View"], x: 760, y: 100 },
+  { id: "g4", seatNumber: "G4", zoneId: "group", status: "AVAILABLE", features: ["Ergonomic Chair"], x: 760, y: 160 },
   
   // Charging Zone - B1-B12
-  { id: "b1", name: "B1", zone: "charging", status: "AVAILABLE", features: ["Power Outlet", "Window View"], x: 100, y: 350 },
-  { id: "b2", name: "B2", zone: "charging", status: "AVAILABLE", features: ["Power Outlet"], x: 160, y: 350 },
-  { id: "b3", name: "B3", zone: "charging", status: "AVAILABLE", features: ["Ergonomic Chair"], x: 100, y: 410 },
-  { id: "b4", name: "B4", zone: "charging", status: "AVAILABLE", features: ["Power Outlet", "Dual Monitors"], x: 160, y: 410 },
-  { id: "b5", name: "B5", zone: "charging", status: "RESERVED", features: ["Power Outlet"], x: 300, y: 350 },
-  { id: "b6", name: "B6", zone: "charging", status: "OCCUPIED", features: ["Window View"], x: 360, y: 350 },
-  { id: "b7", name: "B7", zone: "charging", status: "AVAILABLE", features: ["Power Outlet"], x: 300, y: 410 },
-  { id: "b8", name: "B8", zone: "charging", status: "AVAILABLE", features: ["Ergonomic Chair", "Power Outlet"], x: 360, y: 410 },
-  { id: "b9", name: "B9", zone: "charging", status: "OCCUPIED", features: ["Power Outlet"], x: 500, y: 350 },
-  { id: "b10", name: "B10", zone: "charging", status: "OCCUPIED", features: ["Dual Monitors"], x: 560, y: 350 },
-  { id: "b11", name: "B11", zone: "charging", status: "OCCUPIED", features: ["Power Outlet"], x: 500, y: 410 },
-  { id: "b12", name: "B12", zone: "charging", status: "OCCUPIED", features: ["Window View"], x: 560, y: 410 },
+  { id: "b1", seatNumber: "B1", zoneId: "charging", status: "AVAILABLE", features: ["Power Outlet", "Window View"], x: 100, y: 350 },
+  { id: "b2", seatNumber: "B2", zoneId: "charging", status: "AVAILABLE", features: ["Power Outlet"], x: 160, y: 350 },
+  { id: "b3", seatNumber: "B3", zoneId: "charging", status: "AVAILABLE", features: ["Ergonomic Chair"], x: 100, y: 410 },
+  { id: "b4", seatNumber: "B4", zoneId: "charging", status: "AVAILABLE", features: ["Power Outlet", "Dual Monitors"], x: 160, y: 410 },
+  { id: "b5", seatNumber: "B5", zoneId: "charging", status: "RESERVED", features: ["Power Outlet"], x: 300, y: 350 },
+  { id: "b6", seatNumber: "B6", zoneId: "charging", status: "OCCUPIED", features: ["Window View"], x: 360, y: 350 },
+  { id: "b7", seatNumber: "B7", zoneId: "charging", status: "AVAILABLE", features: ["Power Outlet"], x: 300, y: 410 },
+  { id: "b8", seatNumber: "B8", zoneId: "charging", status: "AVAILABLE", features: ["Ergonomic Chair", "Power Outlet"], x: 360, y: 410 },
+  { id: "b9", seatNumber: "B9", zoneId: "charging", status: "OCCUPIED", features: ["Power Outlet"], x: 500, y: 350 },
+  { id: "b10", seatNumber: "B10", zoneId: "charging", status: "OCCUPIED", features: ["Dual Monitors"], x: 560, y: 350 },
+  { id: "b11", seatNumber: "B11", zoneId: "charging", status: "OCCUPIED", features: ["Power Outlet"], x: 500, y: 410 },
+  { id: "b12", seatNumber: "B12", zoneId: "charging", status: "OCCUPIED", features: ["Window View"], x: 560, y: 410 },
   
   // More Group Seats
-  { id: "g5", name: "G5", zone: "group", status: "RESERVED", features: ["Power Outlet", "Dual Monitors"], x: 700, y: 350 },
-  { id: "g6", name: "G6", zone: "group", status: "AVAILABLE", features: ["Power Outlet"], x: 760, y: 350 },
-  { id: "g7", name: "G7", zone: "group", status: "AVAILABLE", features: ["Ergonomic Chair"], x: 700, y: 410 },
-  { id: "g8", name: "G8", zone: "group", status: "RESERVED", features: ["Window View"], x: 760, y: 410 },
+  { id: "g5", seatNumber: "G5", zoneId: "group", status: "RESERVED", features: ["Power Outlet", "Dual Monitors"], x: 700, y: 350 },
+  { id: "g6", seatNumber: "G6", zoneId: "group", status: "AVAILABLE", features: ["Power Outlet"], x: 760, y: 350 },
+  { id: "g7", seatNumber: "G7", zoneId: "group", status: "AVAILABLE", features: ["Ergonomic Chair"], x: 700, y: 410 },
+  { id: "g8", seatNumber: "G8", zoneId: "group", status: "RESERVED", features: ["Window View"], x: 760, y: 410 },
 ]
 
 export default function FindSeatPage() {
@@ -347,8 +347,8 @@ export default function FindSeatPage() {
       setIsReservationOpen(false)
       setSelectedSeat(null)
       
-      // Navigate to reservations page to show the new booking
-      router.push("/reservations")
+      // Navigate to my-reservations page to show the new booking
+      router.push("/my-reservations")
     } catch (error) {
       console.error("[handleReserve] Error:", error)
       toast.error("Reservation Failed", {
@@ -457,8 +457,8 @@ export default function FindSeatPage() {
                   <g key={seat.id}>
                     {/* Seat Button Background */}
                     <rect
-                      x={seat.x - 20}
-                      y={seat.y - 20}
+                      x={(seat.x || 0) - 20}
+                      y={(seat.y || 0) - 20}
                       width="40"
                       height="40"
                       rx="8"
@@ -468,8 +468,8 @@ export default function FindSeatPage() {
                     />
                     {/* Seat Label */}
                     <text
-                      x={seat.x}
-                      y={seat.y + 4}
+                      x={seat.x || 0}
+                      y={(seat.y || 0) + 4}
                       textAnchor="middle"
                       className="text-sm font-semibold fill-white pointer-events-none"
                     >
@@ -779,7 +779,7 @@ export default function FindSeatPage() {
                 <div className="mb-6">
                   <h3 className="text-sm font-semibold text-slate-900 mb-4">Seat Features</h3>
                   <div className="space-y-3">
-                    {selectedSeat.features.map((feature) => (
+                    {selectedSeat.features?.map((feature) => (
                       <div key={feature} className="flex items-center gap-3 text-sm text-slate-600">
                         {feature === "Power Outlet" && <Zap className="w-4 h-4 text-slate-400" />}
                         {feature === "Window View" && <Sun className="w-4 h-4 text-slate-400" />}

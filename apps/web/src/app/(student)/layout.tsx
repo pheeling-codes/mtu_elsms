@@ -31,7 +31,7 @@ import { useToast } from "@/hooks/use-toast"
 const navItems = [
   { href: "/dashboard", label: "Home", icon: Home },
   { href: "/find-seat", label: "Find Seat", icon: MapPin },
-  { href: "/reservations", label: "My Reservations", icon: Calendar },
+  { href: "/my-reservations", label: "My Reservations", icon: Calendar },
   { href: "/profile", label: "Profile", icon: User },
 ]
 

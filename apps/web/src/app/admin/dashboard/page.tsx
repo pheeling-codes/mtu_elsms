@@ -3,21 +3,26 @@
 import { useEffect, useState } from "react"
 import {
   Armchair,
-  Clock,
+  TrendingUp,
+  TrendingDown,
   CalendarDays,
   AlertTriangle,
   ChevronDown,
   AlertCircle,
   CheckCircle,
-  Clock3,
+  Clock,
   MapPin,
   ArrowRight,
   Filter,
+  BarChart3,
+  Clock3,
 } from "lucide-react"
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell } from "recharts"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +37,16 @@ interface DashboardMetrics {
   occupancyRate: number
   activeReservations: number
   noShowRate: number
+}
+
+interface SeatUsageData {
+  day: string
+  usage: number
+}
+
+interface PeakHourData {
+  hour: string
+  occupancy: number
 }
 
 interface Alert {
@@ -59,6 +74,8 @@ export default function AdminDashboardPage() {
     activeReservations: 0,
     noShowRate: 0,
   })
+  const [seatUsageData, setSeatUsageData] = useState<SeatUsageData[]>([])
+  const [peakHoursData, setPeakHoursData] = useState<PeakHourData[]>([])
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -115,6 +132,26 @@ export default function AdminDashboardPage() {
         activeReservations,
         noShowRate: Math.round(noShowRate * 10) / 10,
       })
+
+      // Set chart data (mock for now, can be connected to real data later)
+      setSeatUsageData([
+        { day: "Mon", usage: 320 },
+        { day: "Tue", usage: 380 },
+        { day: "Wed", usage: 420 },
+        { day: "Thu", usage: 450 },
+        { day: "Fri", usage: 380 },
+        { day: "Sat", usage: 280 },
+        { day: "Sun", usage: 250 },
+      ])
+
+      setPeakHoursData([
+        { hour: "08:00", occupancy: 20 },
+        { hour: "10:00", occupancy: 65 },
+        { hour: "12:00", occupancy: 95 },
+        { hour: "14:00", occupancy: 88 },
+        { hour: "16:00", occupancy: 55 },
+        { hour: "18:00", occupancy: 30 },
+      ])
 
       // Fetch recent reservations for activity feed
       const { data: recentReservations, error: recentError } = await supabase
@@ -284,144 +321,357 @@ export default function AdminDashboardPage() {
     }
   }
 
+  // Find max value for highlighting
+  const maxUsage = Math.max(...seatUsageData.map(d => d.usage), 0)
+
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Overview</h1>
-          <p className="text-gray-500 mt-1">Library space management and analytics overview</p>
+          <h1 className="text-2xl font-bold text-slate-900">Overview</h1>
+          <p className="text-slate-500 mt-1 text-sm">Library space management and analytics overview</p>
         </div>
 
         {/* Date Picker */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="gap-2">
-              <CalendarDays className="w-4 h-4" />
-              {selectedDate}
-              <ChevronDown className="w-4 h-4" />
+            <Button variant="outline" className="gap-2 rounded-xl border-slate-200 hover:bg-slate-50">
+              <CalendarDays className="w-4 h-4 text-slate-500" />
+              <span className="text-slate-700">{selectedDate}</span>
+              <ChevronDown className="w-4 h-4 text-slate-400" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setSelectedDate("Today, Oct 24, 2023")}>
+          <DropdownMenuContent align="end" className="rounded-xl">
+            <DropdownMenuItem onClick={() => setSelectedDate("Today, Oct 24, 2023")} className="rounded-lg">
               Today
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSelectedDate("Yesterday, Oct 23, 2023")}>
+            <DropdownMenuItem onClick={() => setSelectedDate("Yesterday, Oct 23, 2023")} className="rounded-lg">
               Yesterday
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSelectedDate("Last 7 Days")}>
+            <DropdownMenuItem onClick={() => setSelectedDate("Last 7 Days")} className="rounded-lg">
               Last 7 Days
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSelectedDate("Last 30 Days")}>
+            <DropdownMenuItem onClick={() => setSelectedDate("Last 30 Days")} className="rounded-lg">
               Last 30 Days
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards - Minimalist with clean borders */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {kpiCards.map((card, index) => {
-          const Icon = card.icon
-          return (
-            <Card
-              key={index}
-              className={cn(
-                "border-l-4 bg-white shadow-sm hover:shadow-md transition-shadow",
-                card.borderColor
-              )}
-            >
+        {isLoading ? (
+          // Skeleton loading
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="rounded-2xl border-slate-200 shadow-sm">
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-20 mb-2" />
+                <Skeleton className="h-3 w-32" />
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <>
+            {/* Total Seats */}
+            <Card className="rounded-2xl border-slate-200 shadow-sm hover:shadow-md transition-shadow bg-white">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-gray-500">
-                  {card.title}
-                </CardTitle>
-                <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", card.iconBg)}>
-                  <Icon className={cn("w-5 h-5", card.iconColor)} />
+                <CardTitle className="text-sm font-medium text-slate-500">Total Seats</CardTitle>
+                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
+                  <Armchair className="w-5 h-5 text-slate-600" />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-gray-900">{card.value}</div>
-                <p className={cn(
-                  "text-xs mt-1 font-medium",
-                  card.trendUp === true ? "text-[#10B981]" : card.trendUp === false ? "text-red-500" : "text-gray-500"
-                )}>
-                  {card.trendUp === true && "↗ "}
-                  {card.trendUp === false && "↘ "}
-                  {card.trend}
-                </p>
+                <div className="text-3xl font-bold text-slate-900">{metrics.totalSeats || 450}</div>
+                <div className="flex items-center gap-1 mt-1">
+                  <TrendingUp className="w-3 h-3 text-[#10B981]" />
+                  <span className="text-xs text-[#10B981] font-medium">+12</span>
+                  <span className="text-xs text-slate-400">from last month</span>
+                </div>
               </CardContent>
             </Card>
-          )
-        })}
+
+            {/* Occupancy Rate */}
+            <Card className="rounded-2xl border-slate-200 shadow-sm hover:shadow-md transition-shadow bg-white">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-500">Occupancy Rate</CardTitle>
+                <div className="w-10 h-10 rounded-xl bg-[#10B981]/10 flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-[#10B981]" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-slate-900">{metrics.occupancyRate || 68}%</div>
+                <div className="flex items-center gap-1 mt-1">
+                  <TrendingUp className="w-3 h-3 text-[#10B981]" />
+                  <span className="text-xs text-[#10B981] font-medium">+5.2%</span>
+                  <span className="text-xs text-slate-400">from yesterday</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Active Reservations */}
+            <Card className="rounded-2xl border-slate-200 shadow-sm hover:shadow-md transition-shadow bg-white">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-500">Active Reservations</CardTitle>
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                  <CalendarDays className="w-5 h-5 text-blue-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-slate-900">{metrics.activeReservations || 124}</div>
+                <div className="flex items-center gap-1 mt-1">
+                  <span className="text-xs text-slate-400">Right now</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* No-show Rate */}
+            <Card className="rounded-2xl border-slate-200 shadow-sm hover:shadow-md transition-shadow bg-white">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-500">No-show Rate</CardTitle>
+                <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-rose-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-slate-900">{metrics.noShowRate || 4.2}%</div>
+                <div className="flex items-center gap-1 mt-1">
+                  <TrendingDown className="w-3 h-3 text-[#10B981]" />
+                  <span className="text-xs text-[#10B981] font-medium">-1.1%</span>
+                  <span className="text-xs text-slate-400">from last week</span>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
-      {/* Main Content Grid */}
+      {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* System Alerts */}
-        <Card className="shadow-sm">
+        {/* Seat Usage Over Time */}
+        <Card className="rounded-2xl border-slate-200 shadow-sm bg-white">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <div>
-              <CardTitle className="text-lg font-semibold text-gray-900">System Alerts</CardTitle>
-              <p className="text-sm text-gray-500">High-priority events requiring attention</p>
+              <CardTitle className="text-lg font-semibold text-slate-900">Seat Usage Over Time</CardTitle>
+              <p className="text-sm text-slate-500">Daily seat utilization</p>
             </div>
-            <Button variant="ghost" size="sm" className="text-[#10B981] hover:text-[#059669]">
-              View all
-              <ArrowRight className="w-4 h-4 ml-1" />
+            <Button variant="ghost" size="sm" className="text-[#10B981] hover:text-[#059669] rounded-xl">
+              Last 7 Days
+              <ChevronDown className="w-4 h-4 ml-1" />
             </Button>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {alerts.map((alert) => (
-              <div
-                key={alert.id}
-                className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
-              >
-                {getAlertIcon(alert.type)}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    {getAlertBadge(alert.type)}
-                    <span className="text-xs text-gray-400">{alert.time}</span>
-                  </div>
-                  <p className="text-sm font-medium text-gray-900">{alert.title}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{alert.description}</p>
-                </div>
+          <CardContent>
+            {isLoading ? (
+              <div className="h-48 flex items-center justify-center">
+                <Skeleton className="h-40 w-full" />
               </div>
-            ))}
+            ) : (
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={seatUsageData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <XAxis 
+                      dataKey="day" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#64748b', fontSize: 12 }}
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#64748b', fontSize: 12 }}
+                    />
+                    <Bar dataKey="usage" radius={[6, 6, 0, 0]} barSize={40}>
+                      {seatUsageData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.usage === maxUsage ? '#10B981' : '#10B98120'}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Peak Hours */}
+        <Card className="rounded-2xl border-slate-200 shadow-sm bg-white">
+          <CardHeader className="flex flex-row items-center justify-between pb-4">
+            <div>
+              <CardTitle className="text-lg font-semibold text-slate-900">Peak Hours (Today)</CardTitle>
+              <p className="text-sm text-slate-500">Library occupancy by hour</p>
+            </div>
+            <Button variant="ghost" size="sm" className="text-[#10B981] hover:text-[#059669] rounded-xl">
+              All Zones
+              <ChevronDown className="w-4 h-4 ml-1" />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-8 w-full" />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {peakHoursData.map((hour, index) => {
+                  const isPeak = hour.occupancy >= 80
+                  return (
+                    <div key={hour.hour} className="flex items-center gap-3">
+                      <span className="text-sm text-slate-500 w-14">{hour.hour}</span>
+                      <div className="flex-1 h-8 bg-slate-100 rounded-lg overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full rounded-lg transition-all duration-500",
+                            isPeak ? "bg-[#10B981]" : "bg-[#10B981]/20"
+                          )}
+                          style={{ width: `${hour.occupancy}%` }}
+                        />
+                      </div>
+                      <span className={cn(
+                        "text-sm font-medium w-10 text-right",
+                        isPeak ? "text-[#10B981]" : "text-slate-600"
+                      )}>
+                        {hour.occupancy}%
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bottom Row - Alerts and Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* System Alerts */}
+        <Card className="rounded-2xl border-slate-200 shadow-sm bg-white">
+          <CardHeader className="flex flex-row items-center justify-between pb-4">
+            <div>
+              <CardTitle className="text-lg font-semibold text-slate-900">System Alerts</CardTitle>
+              <p className="text-sm text-slate-500">High-priority events requiring attention</p>
+            </div>
+            <Button variant="ghost" size="sm" className="text-[#10B981] hover:text-[#059669] rounded-xl font-medium">
+              View all
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {isLoading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50">
+                  <Skeleton className="w-8 h-8 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                </div>
+              ))
+            ) : (
+              alerts.map((alert) => (
+                <div
+                  key={alert.id}
+                  className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
+                >
+                  {alert.type === "overdue" ? (
+                    <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+                      <AlertCircle className="w-4 h-4 text-rose-500" />
+                    </div>
+                  ) : alert.type === "warning" ? (
+                    <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                      <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    </div>
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-[#10B981]/10 flex items-center justify-center shrink-0">
+                      <CheckCircle className="w-4 h-4 text-[#10B981]" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      {alert.type === "overdue" ? (
+                        <Badge variant="outline" className="bg-rose-50 text-rose-600 border-rose-200 text-[10px] font-semibold px-2 py-0.5">
+                          OVERDUE
+                        </Badge>
+                      ) : alert.type === "warning" ? (
+                        <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 text-[10px] font-semibold px-2 py-0.5">
+                          WARNING
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20 text-[10px] font-semibold px-2 py-0.5">
+                          INFO
+                        </Badge>
+                      )}
+                      <span className="text-xs text-slate-400">{alert.time}</span>
+                    </div>
+                    <p className="text-sm font-medium text-slate-900">{alert.title}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{alert.description}</p>
+                  </div>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
 
         {/* Live Activity Feed */}
-        <Card className="shadow-sm">
+        <Card className="rounded-2xl border-slate-200 shadow-sm bg-white">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <div>
-              <CardTitle className="text-lg font-semibold text-gray-900">Live Activity Feed</CardTitle>
-              <p className="text-sm text-gray-500">Real-time stream of library activities</p>
+              <CardTitle className="text-lg font-semibold text-slate-900">Live Activity Feed</CardTitle>
+              <p className="text-sm text-slate-500">Real-time stream of library activities</p>
             </div>
-            <Button variant="ghost" size="sm" className="text-[#10B981] hover:text-[#059669]">
+            <Button variant="ghost" size="sm" className="text-[#10B981] hover:text-[#059669] rounded-xl font-medium">
               <Filter className="w-4 h-4 mr-1" />
               Filter
             </Button>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {activities.length > 0 ? (
-              activities.map((activity) => (
+          <CardContent className="space-y-3">
+            {isLoading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-start gap-3 p-3 rounded-xl">
+                  <Skeleton className="w-8 h-8 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                </div>
+              ))
+            ) : activities.length > 0 ? (
+              activities.slice(0, 4).map((activity) => (
                 <div
                   key={activity.id}
-                  className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors"
+                  className="flex items-start gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors"
                 >
-                  {getActivityIcon(activity.type)}
+                  {activity.type === "check-in" ? (
+                    <div className="w-8 h-8 rounded-full bg-[#10B981]/10 flex items-center justify-center shrink-0">
+                      <CheckCircle className="w-4 h-4 text-[#10B981]" />
+                    </div>
+                  ) : activity.type === "check-out" ? (
+                    <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                      <Clock3 className="w-4 h-4 text-blue-500" />
+                    </div>
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center shrink-0">
+                      <CalendarDays className="w-4 h-4 text-purple-500" />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm text-gray-900">
+                      <p className="text-sm text-slate-900">
                         <span className="font-semibold">{activity.user}</span>{" "}
                         {activity.action}
                         {activity.seat && (
                           <span className="font-medium text-[#10B981]"> {activity.seat}</span>
                         )}
                       </p>
-                      <span className="text-xs text-gray-400">{activity.time}</span>
+                      <span className="text-xs text-slate-400">{activity.time}</span>
                     </div>
                     {activity.zone && (
-                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                      <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
                         <MapPin className="w-3 h-3" />
                         {activity.zone}
                       </div>
@@ -431,13 +681,11 @@ export default function AdminDashboardPage() {
               ))
             ) : (
               <div className="text-center py-8">
-                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                  <Clock className="w-6 h-6 text-gray-400" />
+                <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                  <Clock className="w-6 h-6 text-slate-400" />
                 </div>
-                <p className="text-sm text-gray-500">No recent activity to display</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Activity logs will appear here once students begin making reservations.
-                </p>
+                <p className="text-sm text-slate-500">No recent activity</p>
+                <p className="text-xs text-slate-400 mt-1">Activity logs will appear here</p>
               </div>
             )}
           </CardContent>

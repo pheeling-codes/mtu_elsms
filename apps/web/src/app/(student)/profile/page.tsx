@@ -23,6 +23,8 @@ import {
   Sun,
   Monitor,
   X,
+  Globe,
+  Shield,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -451,7 +453,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto p-6">
+    <div className="space-y-6 max-w-4xl mx-auto bg-white">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">My Profile</h1>
@@ -593,25 +595,33 @@ export default function ProfilePage() {
         </Card>
       </div>
 
-      {/* System Preferences */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Monitor className="w-5 h-5 text-slate-600" />
-            System Preferences
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Notification Toggle */}
-          <div className="flex items-center justify-between py-2">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
-                <Bell className="w-5 h-5 text-slate-600" />
-              </div>
-              <div>
-                <p className="font-medium text-slate-900">Receive Notifications</p>
-                <p className="text-sm text-slate-500">Get updates on your reservation status and library announcements.</p>
-              </div>
+      {/* Global System Preferences */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <Globe className="w-5 h-5 text-slate-600" />
+            <h2 className="text-base font-semibold text-slate-900">Global System Preferences</h2>
+          </div>
+        </div>
+        <div className="divide-y divide-slate-100">
+          {/* Theme */}
+          <div className="px-6 py-5 flex items-center justify-between">
+            <div>
+              <p className="font-medium text-slate-900 text-[15px]">Theme</p>
+              <p className="text-sm text-slate-500 mt-0.5">Switch between Light Mode and Dark Mode for the admin interface.</p>
+            </div>
+            <Switch
+              checked={preferences.theme === "dark"}
+              onCheckedChange={(checked) =>
+                setPreferences({ ...preferences, theme: checked ? "dark" : "light" })
+              }
+            />
+          </div>
+          {/* Receive System Notifications */}
+          <div className="px-6 py-5 flex items-center justify-between">
+            <div>
+              <p className="font-medium text-slate-900 text-[15px]">Receive System Notifications</p>
+              <p className="text-sm text-slate-500 mt-0.5">Get alerts for system errors, critical capacity alerts, and user reports.</p>
             </div>
             <Switch
               checked={preferences.notifications}
@@ -621,65 +631,30 @@ export default function ProfilePage() {
               className="data-[state=checked]:bg-emerald-500"
             />
           </div>
+        </div>
+      </div>
 
-          {/* Theme Toggle */}
-          <div className="flex items-center justify-between py-2 border-t border-slate-100">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
-                {preferences.theme === "light" ? (
-                  <Sun className="w-5 h-5 text-slate-600" />
-                ) : preferences.theme === "dark" ? (
-                  <Moon className="w-5 h-5 text-slate-600" />
-                ) : (
-                  <Monitor className="w-5 h-5 text-slate-600" />
-                )}
-              </div>
-              <div>
-                <p className="font-medium text-slate-900">Appearance</p>
-                <p className="text-sm text-slate-500">Switch between light and dark mode.</p>
-              </div>
-            </div>
-            <Select
-              value={preferences.theme}
-              onValueChange={(value: "light" | "dark" | "system") =>
-                setPreferences({ ...preferences, theme: value })
-              }
-            >
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="light">Light</SelectItem>
-                <SelectItem value="dark">Dark</SelectItem>
-                <SelectItem value="system">System</SelectItem>
-              </SelectContent>
-            </Select>
+      {/* Account Management */}
+      <div className="bg-white rounded-xl border border-rose-200 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-rose-100 bg-rose-50/80">
+          <div className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-rose-500" />
+            <h2 className="text-base font-semibold text-rose-600">Account Management</h2>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Danger Zone */}
-      <Card className="border-rose-100">
-        <CardHeader>
-          <CardTitle className="text-rose-600 flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5" />
-            Account Settings
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        </div>
+        <div className="divide-y divide-slate-100">
           {/* Logout */}
-          <div className="flex items-center justify-between py-2">
+          <div className="px-6 py-5 flex items-center justify-between">
             <div>
-              <p className="font-medium text-slate-900">Logout</p>
-              <p className="text-sm text-slate-500">Log out of your E-Library Space account on this device.</p>
+              <p className="font-medium text-slate-900 text-[15px]">Logout</p>
+              <p className="text-sm text-slate-500 mt-0.5">Securely log out of your administrator account.</p>
             </div>
             <AlertDialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
               <AlertDialogTrigger asChild>
                 <Button
                   variant="outline"
-                  className="text-rose-500 border-rose-200 hover:bg-rose-50"
+                  className="h-10 px-5 rounded-md border-slate-300 text-slate-700 bg-white hover:bg-slate-50 font-medium"
                 >
-                  <LogOut className="w-4 h-4 mr-2" />
                   Logout
                 </Button>
               </AlertDialogTrigger>
@@ -707,21 +682,33 @@ export default function ProfilePage() {
             </AlertDialog>
           </div>
 
-          {/* Delete Account */}
-          <div className="flex items-center justify-between py-2 border-t border-slate-100">
+          {/* Reset System Data */}
+          <div className="px-6 py-5 flex items-center justify-between">
             <div>
-              <p className="font-medium text-slate-900">Delete Account</p>
-              <p className="text-sm text-slate-500">Permanently delete your account and all associated data.</p>
+              <p className="font-medium text-slate-900 text-[15px]">Reset System Data</p>
+              <p className="text-sm text-slate-500 mt-0.5">This will clear all reservations and system activity. Requires confirmation.</p>
             </div>
+            <Button
+              variant="destructive"
+              className="h-10 px-5 rounded-md bg-rose-500 hover:bg-rose-600 text-white font-medium"
+            >
+              Reset Data
+            </Button>
+          </div>
 
+          {/* Delete Account */}
+          <div className="px-6 py-5 flex items-center justify-between">
+            <div>
+              <p className="font-medium text-slate-900 text-[15px]">Delete Account</p>
+              <p className="text-sm text-slate-500 mt-0.5">Permanently delete your admin account. This action is irreversible.</p>
+            </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
-                  variant="ghost"
-                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                  variant="destructive"
+                  className="h-10 px-5 rounded-md bg-rose-500 hover:bg-rose-600 text-white font-medium"
                   disabled={deleteLoading}
                 >
-                  <Trash2 className="w-4 h-4 mr-2" />
                   Delete Account
                 </Button>
               </AlertDialogTrigger>
@@ -756,8 +743,8 @@ export default function ProfilePage() {
               </AlertDialogContent>
             </AlertDialog>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Crop Profile Picture Modal */}
       <Dialog open={cropModalOpen} onOpenChange={setCropModalOpen}>
