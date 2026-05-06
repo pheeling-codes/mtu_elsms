@@ -143,6 +143,8 @@ export default function SeatManagementPage() {
         canvasWidth: zoneData.canvas_width || 20,
         canvasHeight: zoneData.canvas_height || 15,
         features: zoneData.features || [],
+        createdAt: zoneData.created_at,
+        updatedAt: zoneData.updated_at,
       }
       setZone(zoneWithDefaults)
 
@@ -373,6 +375,7 @@ export default function SeatManagementPage() {
           canvas_width: zone?.canvasWidth,
           canvas_height: zone?.canvasHeight,
           features: zone?.features || [],
+          updated_at: new Date().toISOString(), // Explicitly update audit timestamp
         })
         .eq("id", zoneId)
 

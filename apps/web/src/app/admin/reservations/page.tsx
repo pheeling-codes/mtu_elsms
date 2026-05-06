@@ -5,15 +5,12 @@ import {
   Calendar,
   MapPin,
   Filter,
-  MoreHorizontal,
   Clock,
   User,
   AlertCircle,
   CheckCircle2,
   XCircle,
   Eye,
-  ChevronLeft,
-  ChevronRight,
   CalendarX,
 } from "lucide-react"
 
@@ -47,12 +44,12 @@ interface Reservation {
   seatId: string
   startTime: string
   endTime: string
-  status: "UPCOMING" | "ACTIVE" | "COMPLETED" | "CANCELLED"
+  status: "RESERVED" | "ACTIVE" | "COMPLETED" | "NO_SHOW" | "CANCELLED"
   createdAt: string
   user: {
     id: string
     matricNumber: string
-    role: string
+    avatarUrl?: string
   }
   seat: {
     id: string
@@ -70,12 +67,13 @@ interface Zone {
   name: string
 }
 
-const ITEMS_PER_PAGE = 10
+const TABLE_HEIGHT = "calc(100vh - 280px)"
 
 const statusConfig = {
-  UPCOMING: { label: "Upcoming", variant: "secondary" as const, color: "bg-slate-100 text-slate-700" },
+  RESERVED: { label: "Reserved", variant: "secondary" as const, color: "bg-slate-100 text-slate-700" },
   ACTIVE: { label: "Active", variant: "default" as const, color: "bg-[#10B981] text-white" },
   COMPLETED: { label: "Completed", variant: "outline" as const, color: "bg-slate-50 text-slate-600" },
+  NO_SHOW: { label: "No Show", variant: "destructive" as const, color: "bg-rose-100 text-rose-700" },
   CANCELLED: { label: "Cancelled", variant: "outline" as const, color: "bg-amber-100 text-amber-700" },
 }
 
@@ -84,20 +82,20 @@ export default function ReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [zones, setZones] = useState<Zone[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
-  
+
   // Filters
-  const [dateFilter, setDateFilter] = useState("today")
+  const [dateFilter, setDateFilter] = useState("all")
   const [zoneFilter, setZoneFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
-  
+
   // Dialog state
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false)
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
 
   const fetchReservations = useCallback(async () => {
+    console.log("fetchReservations called")
     setIsLoading(true)
     try {
       let query = supabase
@@ -113,7 +111,7 @@ export default function ReservationsPage() {
           users:userId (
             id,
             matricNumber,
-            role
+            avatarUrl
           ),
           seats:seatId (
             id,
@@ -131,11 +129,15 @@ export default function ReservationsPage() {
       if (dateFilter === "today") {
         const today = now.toISOString().split("T")[0]
         query = query.gte("startTime", today).lt("startTime", today + "T23:59:59")
+      } else if (dateFilter === "yesterday") {
+        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+        const yesterdayStr = yesterday.toISOString().split("T")[0]
+        query = query.gte("startTime", yesterdayStr).lt("startTime", yesterdayStr + "T23:59:59")
       } else if (dateFilter === "week") {
-        const weekAgo = new Date(now.setDate(now.getDate() - 7)).toISOString()
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
         query = query.gte("startTime", weekAgo)
       } else if (dateFilter === "month") {
-        const monthAgo = new Date(now.setMonth(now.getMonth() - 1)).toISOString()
+        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
         query = query.gte("startTime", monthAgo)
       }
 
@@ -149,14 +151,17 @@ export default function ReservationsPage() {
         query = query.eq("status", statusFilter.toUpperCase())
       }
 
-      // Pagination
-      const from = (currentPage - 1) * ITEMS_PER_PAGE
-      const to = from + ITEMS_PER_PAGE - 1
-      query = query.range(from, to).order("startTime", { ascending: false })
+      // Order by start time
+      query = query.order("startTime", { ascending: false })
 
       const { data, error, count } = await query
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabase error:", error)
+        throw error
+      }
+
+      console.log("Fetched reservations:", data?.length || 0, "Total:", count)
 
       // Transform data to match interface
       const transformedData: Reservation[] = (data || []).map((item: any) => ({
@@ -167,7 +172,11 @@ export default function ReservationsPage() {
         endTime: item.endTime,
         status: item.status,
         createdAt: item.createdAt,
-        user: item.users || { id: "", matricNumber: "-", role: "STUDENT" },
+        user: {
+          id: item.users?.id || "",
+          matricNumber: item.users?.matricNumber || "Unknown",
+          avatarUrl: item.users?.avatarUrl,
+        },
         seat: {
           id: item.seats?.id || "",
           seatNumber: item.seats?.seatNumber || "-",
@@ -176,6 +185,7 @@ export default function ReservationsPage() {
         },
       }))
 
+      console.log("Transformed data:", transformedData.length)
       setReservations(transformedData)
       setTotalCount(count || 0)
     } catch (error) {
@@ -188,7 +198,7 @@ export default function ReservationsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [dateFilter, zoneFilter, statusFilter, currentPage, toast])
+  }, [dateFilter, zoneFilter, statusFilter, toast])
 
   const fetchZones = useCallback(async () => {
     try {
@@ -202,9 +212,15 @@ export default function ReservationsPage() {
 
   // Initial fetch
   useEffect(() => {
+    console.log("ReservationsPage mounted")
     fetchZones()
     fetchReservations()
   }, [fetchZones, fetchReservations])
+
+  // Refetch when filters change
+  useEffect(() => {
+    fetchReservations()
+  }, [dateFilter, zoneFilter, statusFilter, fetchReservations])
 
   // Real-time subscription
   useEffect(() => {
@@ -237,7 +253,7 @@ export default function ReservationsPage() {
 
       toast({
         title: "Reservation Cancelled",
-        description: `Cancelled reservation for ${selectedReservation.user.matricNumber}`,
+        description: `Cancelled reservation for student ${selectedReservation.user.matricNumber}`,
         className: "bg-[#10B981] text-white border-none",
       })
 
@@ -305,8 +321,6 @@ export default function ReservationsPage() {
     })
   }
 
-  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE)
-
   return (
     <div className="p-10 bg-slate-50 min-h-[calc(100vh-64px)]">
       {/* Header */}
@@ -326,10 +340,11 @@ export default function ReservationsPage() {
               <SelectValue placeholder="Date" />
             </SelectTrigger>
             <SelectContent className="rounded-lg">
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="week">This Week</SelectItem>
-              <SelectItem value="month">This Month</SelectItem>
               <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="yesterday">Yesterday</SelectItem>
+              <SelectItem value="week">Last 7 Days</SelectItem>
+              <SelectItem value="month">Last 30 Days</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -359,9 +374,10 @@ export default function ReservationsPage() {
             </SelectTrigger>
             <SelectContent className="rounded-lg">
               <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="upcoming">Upcoming</SelectItem>
+              <SelectItem value="reserved">Reserved</SelectItem>
               <SelectItem value="active">Active</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="no_show">No Show</SelectItem>
               <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
@@ -369,7 +385,7 @@ export default function ReservationsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
         {isLoading ? (
           <div className="p-6 space-y-4">
             {[...Array(5)].map((_, i) => (
@@ -402,8 +418,8 @@ export default function ReservationsPage() {
           </div>
         ) : (
           <>
-            {/* Table Header */}
-            <div className="grid grid-cols-[2fr_1.5fr_1.5fr_1fr_1.5fr] gap-4 px-6 py-3 bg-slate-50 border-b border-slate-200">
+            {/* Table Header - Fixed */}
+            <div className="grid grid-cols-[2fr_1.5fr_1.5fr_1fr_1.5fr] gap-4 px-6 py-3 bg-slate-50 border-b border-slate-200 shrink-0">
               <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
                 User
               </div>
@@ -421,8 +437,11 @@ export default function ReservationsPage() {
               </div>
             </div>
 
-            {/* Table Body */}
-            <div className="divide-y divide-slate-100">
+            {/* Table Body - Scrollable */}
+            <div
+              className="divide-y divide-slate-100 overflow-y-auto"
+              style={{ height: TABLE_HEIGHT }}
+            >
               {reservations.map((reservation) => (
                 <div
                   key={reservation.id}
@@ -434,10 +453,10 @@ export default function ReservationsPage() {
                     </div>
                     <div>
                       <p className="font-semibold text-slate-900">
-                        {reservation.user.matricNumber}
+                        Student {reservation.user.matricNumber}
                       </p>
                       <p className="text-xs text-slate-500">
-                        {reservation.user.role}
+                        {reservation.user.matricNumber}
                       </p>
                     </div>
                   </div>
@@ -469,7 +488,7 @@ export default function ReservationsPage() {
                     </Badge>
                   </div>
                   <div className="text-right">
-                    {reservation.status === "UPCOMING" && (
+                    {reservation.status === "RESERVED" && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -505,78 +524,27 @@ export default function ReservationsPage() {
                         View Details
                       </Button>
                     )}
-                    {reservation.status === "CANCELLED" && (
-                      <span className="text-xs text-slate-400">Cancelled</span>
+                    {(reservation.status === "NO_SHOW" ||
+                      reservation.status === "CANCELLED") && (
+                      <span className="text-xs text-slate-400">
+                        {reservation.status === "NO_SHOW"
+                          ? "Missed"
+                          : "Cancelled"}
+                      </span>
                     )}
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Pagination */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200">
+            {/* Table Footer - Fixed */}
+            <div className="flex items-center justify-between px-6 py-3 border-t border-slate-200 bg-slate-50 shrink-0">
               <p className="text-sm text-slate-500">
-                Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
-                {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} of{" "}
-                {totalCount} reservations
+                {totalCount} reservation{totalCount !== 1 ? 's' : ''} total
               </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="rounded-lg"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    const page = i + 1
-                    return (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={cn(
-                          "w-8 h-8 rounded-lg text-sm font-medium transition-colors",
-                          currentPage === page
-                            ? "bg-[#10B981] text-white"
-                            : "text-slate-600 hover:bg-slate-100"
-                        )}
-                      >
-                        {page}
-                      </button>
-                    )
-                  })}
-                  {totalPages > 5 && (
-                    <>
-                      <span className="px-2 text-slate-400">...</span>
-                      <button
-                        onClick={() => setCurrentPage(totalPages)}
-                        className={cn(
-                          "w-8 h-8 rounded-lg text-sm font-medium transition-colors",
-                          currentPage === totalPages
-                            ? "bg-[#10B981] text-white"
-                            : "text-slate-600 hover:bg-slate-100"
-                        )}
-                      >
-                        {totalPages}
-                      </button>
-                    </>
-                  )}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCurrentPage((p) => Math.min(totalPages, p + 1))
-                  }
-                  disabled={currentPage === totalPages}
-                  className="rounded-lg"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
+              <p className="text-sm text-slate-400">
+                Scroll to view more
+              </p>
             </div>
           </>
         )}
@@ -588,7 +556,7 @@ export default function ReservationsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel Reservation?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will cancel the reservation for{" "}
+              This will cancel the reservation for student{" "}
               <strong>{selectedReservation?.user.matricNumber}</strong> at Seat{" "}
               <strong>{selectedReservation?.seat.seatNumber}</strong>. This
               action cannot be undone.
@@ -617,7 +585,7 @@ export default function ReservationsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Force Release Seat?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will immediately end the active session for{" "}
+              This will immediately end the active session for student{" "}
               <strong>{selectedReservation?.user.matricNumber}</strong> at Seat{" "}
               <strong>{selectedReservation?.seat.seatNumber}</strong>. The user
               will be checked out and the seat will become available.

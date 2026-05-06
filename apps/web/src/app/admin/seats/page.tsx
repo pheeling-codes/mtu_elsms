@@ -16,6 +16,7 @@ interface Zone {
   type: string
   color?: string
   seatCount?: number
+  updatedAt?: string
 }
 
 const ZONE_COLORS: Record<string, string> = {
@@ -50,7 +51,7 @@ export default function SeatManagementLanding() {
       
       // Get seat counts for each zone
       const zonesWithCounts = await Promise.all(
-        (data || []).map(async (zone) => {
+        (data || []).map(async (zone: any) => {
           const { count } = await supabase
             .from("seats")
             .select("*", { count: "exact", head: true })
@@ -60,6 +61,7 @@ export default function SeatManagementLanding() {
             ...zone,
             color: zone.color || "#10B981",
             seatCount: count || 0,
+            updatedAt: zone.updated_at,
           }
         })
       )
@@ -152,6 +154,30 @@ export default function SeatManagementLanding() {
               <p className="text-sm text-slate-500 capitalize">
                 {zone.type.toLowerCase()} Zone
               </p>
+              {zone.updatedAt && (
+                <div className="text-xs text-slate-600 font-medium mt-2">
+                  Last layout update: {(() => {
+                    const date = new Date(zone.updatedAt)
+                    const day = date.getDate()
+                    const getOrdinalDay = (d: number) => {
+                      const j = d % 10, k = d % 100
+                      if (j == 1 && k != 11) return d + 'st'
+                      if (j == 2 && k != 12) return d + 'nd'
+                      if (j == 3 && k != 13) return d + 'rd'
+                      return d + 'th'
+                    }
+                    const month = date.toLocaleDateString('en-GB', { month: 'long', timeZone: 'Africa/Lagos' })
+                    const year = date.getFullYear()
+                    const time = date.toLocaleTimeString('en-GB', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: false,
+                      timeZone: 'Africa/Lagos'
+                    })
+                    return `${getOrdinalDay(day)} ${month} ${year} | ${time}`
+                  })()}
+                </div>
+              )}
               <div className="mt-4 pt-4 border-t border-slate-100">
                 <span className="text-sm text-[#10B981] font-medium group-hover:underline">
                   Manage Layout &rarr;

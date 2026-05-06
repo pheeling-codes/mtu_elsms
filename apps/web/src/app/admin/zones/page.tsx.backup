@@ -446,8 +446,11 @@ export default function ZonesPage() {
                               placeholder="Zone name"
                             />
                           ) : (
-                            <div className="flex items-center gap-2">
-                              
+                            <div className="flex items-center justify-center gap-2">
+                              <div
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: zone.color }}
+                              />
                               <span className="font-medium text-slate-900">{zone.name}</span>
                             </div>
                           )}
@@ -479,7 +482,7 @@ export default function ZonesPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className="font-medium text-slate-600">
+                        <span className="text-slate-600">
                           {zone.seatCount || 0} Seats
                         </span>
                       </td>
@@ -489,7 +492,7 @@ export default function ZonesPage() {
                         </button>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="font-medium text-center">
+                        <div className="text-center">
                           {zone.createdAt ? (
                             <>
                               <div className="text-sm text-slate-700">
@@ -505,7 +508,7 @@ export default function ZonesPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="font-medium text-center">
+                        <div className="text-center">
                           {zone.updatedAt ? (
                             <>
                               <div className="text-sm text-slate-700">
