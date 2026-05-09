@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { AuthService, type AuthUser } from "@/services/auth.service"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +69,7 @@ interface Activity {
 }
 
 export default function AdminDashboardPage() {
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     totalSeats: 0,
     occupancyRate: 0,
@@ -83,7 +85,17 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     fetchDashboardData()
+    fetchCurrentUser()
   }, [])
+
+  const fetchCurrentUser = async () => {
+    try {
+      const currentUser = await AuthService.getCurrentUser()
+      setUser(currentUser)
+    } catch (error) {
+      console.error("Failed to fetch current user:", error)
+    }
+  }
 
   const fetchDashboardData = async () => {
     try {
@@ -184,7 +196,7 @@ export default function AdminDashboardPage() {
         {
           id: "1",
           type: "overdue",
-          title: "Overdue: Gideon M. missed check-in window",
+          title: `Overdue: ${user?.fullName || "A student"} missed check-in window`,
           description: "Seat B5 - Seat automatically released",
           time: "2 mins ago",
         },

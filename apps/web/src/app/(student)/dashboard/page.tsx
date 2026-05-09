@@ -170,7 +170,7 @@ export default function StudentDashboard() {
               Hello
             </h1>
             <span className="text-xm font-bold text-slate-900 ">
-              {user?.matricNumber || "Student"} 
+              {user?.fullName || "Student"} 
             </span>
             <span className="text-2xl">👋</span>
           </div>
@@ -180,7 +180,7 @@ export default function StudentDashboard() {
         </div>
         {/* <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center text-white font-semibold shadow-lg shadow-emerald-200">
-            {(user?.matricNumber?.substring(0, 2) || "ST")}
+            {(user?.fullName?.substring(0, 2) || "ST")}
           </div>
         </div> */}
       </div>
@@ -330,6 +330,22 @@ export default function StudentDashboard() {
                   <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-emerald-500 transition-colors" />
                 </div>
                 <h3 className="font-semibold text-slate-900 mb-1">Library Map</h3>
+                <p className="text-sm text-slate-500">Browse available seats across all zones</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/reservations">
+            <Card className="shadow-sm border-0 bg-white hover:shadow-md transition-all cursor-pointer group h-full">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
+                    <Calendar className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                </div>
+                <h3 className="font-semibold text-slate-900 mb-1">My Reservations</h3>
+                <p className="text-sm text-slate-500">View and manage your seat bookings</p>
               </CardContent>
             </Card>
           </Link>

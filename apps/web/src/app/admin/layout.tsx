@@ -278,11 +278,11 @@ export default function AdminLayout({
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 transition-colors">
                     <div className="text-right hidden sm:block">
-                      <p className="text-sm font-semibold text-slate-900">{user.email?.split("@")[0] || "Admin"}</p>
+                      <p className="text-sm font-semibold text-slate-900">{user.fullName || user.email?.split("@")[0] || "Admin"}</p>
                       <p className="text-xs text-slate-500">Administrator</p>
                     </div>
                     <div className="w-9 h-9 bg-gradient-to-br from-[#10B981] to-[#059669] rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm">
-                      {user.email?.charAt(0).toUpperCase() || "A"}
+                      {user.fullName ? user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : user.email?.charAt(0).toUpperCase() || "A"}
                     </div>
                     <ChevronDown className="w-4 h-4 text-slate-400" />
                   </button>
@@ -292,11 +292,11 @@ export default function AdminLayout({
                   <div className="p-4 bg-gradient-to-br from-[#10B981]/5 to-[#10B981]/10">
                     <div className="flex items-start gap-3">
                       <div className="w-12 h-12 bg-gradient-to-br from-[#10B981] to-[#059669] rounded-full flex items-center justify-center text-white font-semibold text-lg shadow-sm">
-                        {user.email?.charAt(0).toUpperCase() || "A"}
+                        {user.fullName ? user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : user.email?.charAt(0).toUpperCase() || "A"}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-slate-900 truncate">
-                          {user.email?.split("@")[0] || "Admin User"}
+                          {user.fullName || user.email?.split("@")[0] || "Admin User"}
                         </p>
                         <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
                           <Shield className="w-3 h-3 text-[#10B981]" />

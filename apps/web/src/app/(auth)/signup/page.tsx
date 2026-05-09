@@ -15,6 +15,7 @@ import { Role } from "@elsms/types"
 export default function SignupPage() {
   const router = useRouter()
   const [role, setRole] = useState<Role>("STUDENT" as Role)
+  const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [matricNumber, setMatricNumber] = useState("")
   const [password, setPassword] = useState("")
@@ -39,6 +40,16 @@ export default function SignupPage() {
       return
     }
 
+    if (!fullName.trim()) {
+      setError("Full name is required")
+      return
+    }
+
+    if (!email.trim()) {
+      setError("Email is required")
+      return
+    }
+
     if (role === "STUDENT" && !matricNumber.trim()) {
       setError("Matric number is required for students")
       return
@@ -47,6 +58,7 @@ export default function SignupPage() {
     setIsLoading(true)
 
     const { user, error: authError } = await AuthService.signUp({
+      fullName,
       email,
       password,
       matricNumber: role === "STUDENT" ? matricNumber : undefined,
@@ -103,6 +115,24 @@ export default function SignupPage() {
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="space-y-2">
+          <Label htmlFor="fullName" className="text-sm font-medium text-gray-700">
+            Full Name
+          </Label>
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Input
+              id="fullName"
+              type="text"
+              placeholder="e.g. John Doe"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              className="h-12 pl-10 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#10B981] focus:ring-[#10B981]/20 transition-all"
+            />
+          </div>
+        </div>
+
         {role === "STUDENT" && (
           <div className="space-y-2">
             <Label htmlFor="matricNumber" className="text-sm font-medium text-gray-700">

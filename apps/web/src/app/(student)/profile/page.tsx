@@ -132,112 +132,97 @@ export default function ProfilePage() {
         const authUser = session.user
         console.log('[Profile] Auth user:', authUser.id, authUser.email)
 
-        // Fetch full user record from database
-        const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("id, matricNumber, avatarUrl, role")
-          .eq("id", authUser.id)
-          .single()
-
-        if (userError) {
-          console.error('[Profile] User data fetch error:', userError)
-          // Don't redirect - show error state instead
-          setLoading(false)
-          toast({
-            title: "Error loading profile",
-            description: "Could not fetch your profile data. Please try again.",
-            variant: "destructive"
-          })
-          return
+        // Set basic user from auth session (always available)
+        const basicUser: AuthUser = {
+          id: authUser.id,
+          email: authUser.email || '',
+          fullName: authUser.user_metadata?.fullName || undefined,
+          matricNumber: authUser.user_metadata?.matricNumber || undefined,
+          avatarUrl: undefined, // Don't use auth metadata for avatar - fetch from DB
+          role: authUser.user_metadata?.role || 'STUDENT',
         }
+        setUser(basicUser)
 
-        if (!userData) {
-          console.log('[Profile] No user data found in database')
-          // Create user record if it doesn't exist
-          const { error: createError } = await supabase.from("users").insert({
-            id: authUser.id,
-            matricNumber: authUser.user_metadata?.matricNumber || 'TEMP-' + authUser.id.substring(0, 8),
-            role: 'STUDENT',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          })
-          
-          if (createError) {
-            console.error('[Profile] Failed to create user record:', createError)
-            setLoading(false)
-            toast({
-              title: "Profile error",
-              description: "Could not create your profile. Please contact support.",
-              variant: "destructive"
-            })
-            return
-          }
-          
-          // Retry fetching user data
-          const { data: newUserData } = await supabase
+        // Try to fetch additional data from database (optional enhancement)
+        try {
+          const { data: userData, error: userError } = await supabase
             .from("users")
-            .select("id, matricNumber, avatarUrl, role")
+            .select("*")
             .eq("id", authUser.id)
             .single()
           
-          if (newUserData) {
-            const fullUser = {
-              ...authUser,
-              ...newUserData,
-              email: authUser.email
-            }
-            setUser(fullUser)
+          if (userError) {
+            console.warn('[Profile] Database fetch failed, using auth data:', userError.message)
+            // Continue with auth data - don't fail
+          } else if (userData) {
+            console.log('[Profile] Database data received:', userData)
+            // Try multiple possible column names for avatar (old vs new schema)
+            const avatarUrl = userData.avatar_url || userData.avatarUrl || userData.avatar || undefined
+            const fullName = userData.full_name || userData.fullName || userData.name || undefined
+            const matricNumber = userData.matric_number || userData.matricNumber || undefined
+            
+            // Handle both old and new timestamp column names
+            const createdAt = userData.createdAt || userData.created_at || undefined
+            const updatedAt = userData.updatedAt || userData.updated_at || undefined
+            
+            // Merge database data with auth data (database data takes precedence for avatar)
+            setUser({
+              ...basicUser,
+              fullName: fullName || basicUser.fullName,
+              matricNumber: matricNumber || basicUser.matricNumber,
+              avatarUrl: avatarUrl || basicUser.avatarUrl,
+              role: userData.role || basicUser.role,
+              createdAt: createdAt,
+              updatedAt: updatedAt,
+            } as any)
+            console.log('[Profile] Enhanced with database data, avatar:', avatarUrl, 'timestamps:', { createdAt, updatedAt })
           }
-        } else {
-          console.log('[Profile] User data found:', userData)
-          // Merge auth user with database user data (email from auth session)
-          const fullUser = {
-            ...authUser,
-            ...userData,
-            email: authUser.email
-          }
-          setUser(fullUser)
+        } catch (dbError) {
+          console.warn('[Profile] Database error, using auth data:', dbError)
+          // Continue with auth data - don't fail
         }
 
-        // Fetch analytics from Supabase
-        const { data: reservations } = await supabase
-          .from("reservations")
-          .select("*")
-          .eq("user_id", authUser.id)
+        // Fetch analytics from Supabase (optional - doesn't block rendering)
+        try {
+          const { data: reservations } = await supabase
+            .from("reservations")
+            .select("*")
+            .eq("user_id", authUser.id)
 
-        if (reservations) {
-          const typedReservations = reservations as Reservation[]
-          const totalBookings = typedReservations.length
-          const hoursSpent = typedReservations.reduce((acc: number, r: Reservation) => {
-            const start = new Date(r.start_time)
-            const end = new Date(r.end_time)
-            const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
-            return acc + hours
-          }, 0)
-          const noShows = typedReservations.filter((r: Reservation) => r.status === "no_show").length
+          if (reservations) {
+            const typedReservations = reservations as Reservation[]
+            const totalBookings = typedReservations.length
+            const hoursSpent = typedReservations.reduce((acc: number, r: Reservation) => {
+              const start = new Date(r.start_time)
+              const end = new Date(r.end_time)
+              const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+              return acc + hours
+            }, 0)
+            const noShows = typedReservations.filter((r: Reservation) => r.status === "no_show").length
 
-          setAnalytics({
-            totalBookings,
-            hoursSpent: Math.round(hoursSpent),
-            noShows,
-          })
+            setAnalytics({
+              totalBookings,
+              hoursSpent: Math.round(hoursSpent),
+              noShows,
+            })
+          }
+        } catch (analyticsError) {
+          console.warn('[Profile] Analytics fetch failed:', analyticsError)
+          // Continue without analytics - don't fail
         }
         
         setLoading(false)
         console.log('[Profile] Profile loaded successfully')
       } catch (error) {
         console.error('[Profile] Unexpected error:', error)
+        // Still render the page even on error
         setLoading(false)
-        toast({
-          title: "Error",
-          description: "An unexpected error occurred. Please try again.",
-          variant: "destructive"
-        })
+        // Don't show toast for profile load errors - just render with available data
       }
     }
 
     fetchUserData()
-  }, [toast])
+  }, [toast, router])
 
   // Handle avatar upload with cropping
   const handleAvatarClick = () => {
@@ -356,16 +341,23 @@ export default function ProfilePage() {
         throw new Error(result.error || 'Upload failed')
       }
 
-      // Update user record with new avatar URL
+      // Update user record with new avatar URL and timestamp
       const { error: updateError } = await supabase
         .from("users")
-        .update({ avatarUrl: result.url })
+        .update({ 
+          avatarUrl: result.url,
+          updatedAt: new Date().toISOString()
+        })
         .eq("id", user.id)
 
       if (updateError) throw updateError
 
-      // Update local state
-      setUser({ ...user, avatarUrl: result.url })
+      // Update local state with new avatar and timestamp
+      setUser({ 
+        ...user, 
+        avatarUrl: result.url,
+        updatedAt: new Date().toISOString()
+      } as any)
 
       // Close modal
       setCropModalOpen(false)
@@ -453,7 +445,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto bg-white">
+    <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">My Profile</h1>
@@ -467,7 +459,7 @@ export default function ProfilePage() {
             {/* Avatar with Upload */}
             <div className="relative">
               <div
-                className="w-28 h-28 rounded-full overflow-hidden bg-emerald-50 flex items-center justify-center cursor-pointer group"
+                className="w-28 h-28 rounded-full overflow-hidden bg-emerald-500 flex items-center justify-center cursor-pointer group"
                 onClick={handleAvatarClick}
               >
                 {user?.avatarUrl ? (
@@ -479,7 +471,9 @@ export default function ProfilePage() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <User className="w-14 h-14 text-emerald-500" />
+                  <span className="text-white font-bold text-2xl">
+                    {user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : user?.email?.substring(0, 2).toUpperCase() || 'U'}
+                  </span>
                 )}
 
                 {/* Upload Overlay */}
@@ -508,7 +502,7 @@ export default function ProfilePage() {
               <div className="flex items-start justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">
-                    {user?.matricNumber || user?.email?.split("@")[0] || 'Guest'}
+                    {user?.fullName || user?.email?.split("@")[0] || 'Guest'}
                   </h2>
                   <p className="text-slate-500">{user?.role || 'Student'}</p>
                 </div>
@@ -534,6 +528,28 @@ export default function ProfilePage() {
                   <Mail className="w-3.5 h-3.5 text-slate-500" />
                   {user.email}
                 </Badge>
+              </div>
+              
+              {/* Timestamps */}
+              <div className="flex flex-wrap gap-3 mt-3">
+                {(user as any).createdAt && (
+                  <Badge
+                    variant="secondary"
+                    className="bg-slate-100 text-slate-700 border-0 flex items-center gap-2 px-3 py-1"
+                  >
+                    <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                    Created: {new Date((user as any).createdAt).toLocaleString()}
+                  </Badge>
+                )}
+                {(user as any).updatedAt && (
+                  <Badge
+                    variant="secondary"
+                    className="bg-slate-100 text-slate-700 border-0 flex items-center gap-2 px-3 py-1"
+                  >
+                    <Clock className="w-3.5 h-3.5 text-slate-500" />
+                    Updated: {new Date((user as any).updatedAt).toLocaleString()}
+                  </Badge>
+                )}
               </div>
             </div>
           </div>
@@ -620,8 +636,8 @@ export default function ProfilePage() {
           {/* Receive System Notifications */}
           <div className="px-6 py-5 flex items-center justify-between">
             <div>
-              <p className="font-medium text-slate-900 text-[15px]">Receive System Notifications</p>
-              <p className="text-sm text-slate-500 mt-0.5">Get alerts for system errors, critical capacity alerts, and user reports.</p>
+              <p className="font-medium text-slate-900 text-[15px]">Email Notifications</p>
+              <p className="text-sm text-slate-500 mt-0.5">Receive booking confirmations and reminders via email.</p>
             </div>
             <Switch
               checked={preferences.notifications}
@@ -647,7 +663,7 @@ export default function ProfilePage() {
           <div className="px-6 py-5 flex items-center justify-between">
             <div>
               <p className="font-medium text-slate-900 text-[15px]">Logout</p>
-              <p className="text-sm text-slate-500 mt-0.5">Securely log out of your administrator account.</p>
+              <p className="text-sm text-slate-500 mt-0.5">Securely log out of your student account.</p>
             </div>
             <AlertDialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
               <AlertDialogTrigger asChild>
@@ -682,25 +698,11 @@ export default function ProfilePage() {
             </AlertDialog>
           </div>
 
-          {/* Reset System Data */}
-          <div className="px-6 py-5 flex items-center justify-between">
-            <div>
-              <p className="font-medium text-slate-900 text-[15px]">Reset System Data</p>
-              <p className="text-sm text-slate-500 mt-0.5">This will clear all reservations and system activity. Requires confirmation.</p>
-            </div>
-            <Button
-              variant="destructive"
-              className="h-10 px-5 rounded-md bg-rose-500 hover:bg-rose-600 text-white font-medium"
-            >
-              Reset Data
-            </Button>
-          </div>
-
           {/* Delete Account */}
           <div className="px-6 py-5 flex items-center justify-between">
             <div>
               <p className="font-medium text-slate-900 text-[15px]">Delete Account</p>
-              <p className="text-sm text-slate-500 mt-0.5">Permanently delete your admin account. This action is irreversible.</p>
+              <p className="text-sm text-slate-500 mt-0.5">Permanently delete your student account. This action is irreversible.</p>
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>

@@ -5,16 +5,17 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 model User {
   id           String        @id
-  matricNumber String        @unique
+  fullName     String        @map("full_name")
+  email        String        @unique
+  matricNumber String        @unique @map("matric_number")
   role         Role          @default(STUDENT)
   createdAt    DateTime      @default(now()) @map("createdAt")
   updatedAt    DateTime      @updatedAt @map("updatedAt")
-  avatarUrl    String?
+  avatarUrl    String?       @map("avatar_url")
   reservations Reservation[]
 
   @@map("users")

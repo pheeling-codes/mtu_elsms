@@ -425,20 +425,26 @@ export default function StudentLayout({
               {/* User Profile Cluster */}
               <div className="flex items-center gap-6 pl-8 border-l border-slate-200">
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm text-slate-900 font-medium">{user.email}</p>
+                  <p className="text-sm text-slate-900 font-medium">{user.fullName || user.email}</p>
                   <Badge className="bg-emerald-500 text-white text-[10px] font-medium px-2 py-0 mt-0.5">
                     Student
                   </Badge>
                 </div>
-                {/* Real Avatar Image */}
-                <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-slate-100">
-                  <Image
-                    src={user.avatarUrl || `https://i.pravatar.cc/150?u=${user.email || user.id}`}
-                    alt="Profile"
-                    fill
-                    sizes="40px"
-                    className="object-cover"
-                  />
+                {/* Real Avatar Image or Initial Avatar */}
+                <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-slate-100 bg-emerald-500 flex items-center justify-center">
+                  {user.avatarUrl ? (
+                    <Image
+                      src={user.avatarUrl}
+                      alt="Profile"
+                      fill
+                      sizes="40px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <span className="text-white font-semibold text-sm">
+                      {user.fullName ? user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : user.email?.substring(0, 2).toUpperCase() || 'U'}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

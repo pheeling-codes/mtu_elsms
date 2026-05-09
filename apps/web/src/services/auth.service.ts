@@ -45,6 +45,7 @@ export interface SignInCredentials {
 }
 
 export interface SignUpData {
+  fullName: string
   email: string
   password: string
   matricNumber?: string
@@ -53,6 +54,7 @@ export interface SignUpData {
 
 export interface AuthUser {
   id: string
+  fullName?: string
   email: string
   role: Role
   matricNumber?: string
@@ -156,7 +158,7 @@ export class AuthService {
     }
   }
 
-  static async signUp({ email, password, matricNumber, role }: SignUpData): Promise<{ user: AuthUser | null; error?: string }> {
+  static async signUp({ fullName, email, password, matricNumber, role }: SignUpData): Promise<{ user: AuthUser | null; error?: string }> {
     try {
       if (role === "STUDENT" && !matricNumber) {
         return { user: null, error: "Matric number is required for students" }
@@ -180,6 +182,7 @@ export class AuthService {
         password,
         options: {
           data: {
+            fullName,
             role,
             matricNumber,
           }
@@ -198,6 +201,8 @@ export class AuthService {
       // User is authenticated now, so this should work with RLS
       const { error: syncError } = await supabase.from("users").upsert({
         id: data.user.id,
+        fullName: fullName,
+        email: email,
         matricNumber: matricNumber || 'TEMP-' + data.user.id.substring(0, 8),
         role: role,
         createdAt: new Date().toISOString(),
@@ -250,38 +255,38 @@ export class AuthService {
     const user = session.user
 
     try {
-      // Try with avatarUrl column (may not exist yet in DB)
+      // Try with wildcard to get whatever columns exist
       const { data: userRecord, error } = await supabase
         .from("users")
-        .select("role, matricNumber, avatarUrl")
+        .select("*")
         .eq("id", user.id)
         .single()
 
       if (error) {
-        // If avatarUrl column doesn't exist, try without it
-        if (error.message?.includes("avatarUrl") || error.message?.includes("column")) {
-          const { data: basicRecord } = await supabase
-            .from("users")
-            .select("role, matricNumber")
-            .eq("id", user.id)
-            .single()
-          
-          return {
-            id: user.id,
-            email: user.email!,
-            role: (basicRecord?.role as Role) || "STUDENT",
-            matricNumber: basicRecord?.matricNumber,
-          }
+        console.warn("AuthService: Database fetch failed, using auth data:", error.message)
+        // Return basic user info even if DB query fails
+        return {
+          id: user.id,
+          email: user.email!,
+          fullName: user.user_metadata?.fullName || undefined,
+          matricNumber: user.user_metadata?.matricNumber || undefined,
+          avatarUrl: user.user_metadata?.avatar_url || undefined,
+          role: (user.user_metadata?.role as Role) || "STUDENT",
         }
-        throw error
       }
+
+      // Handle both old (camelCase) and new (snake_case) schemas
+      const avatarUrl = userRecord?.avatar_url || userRecord?.avatarUrl || userRecord?.avatar || undefined
+      const fullName = userRecord?.full_name || userRecord?.fullName || userRecord?.name || undefined
+      const matricNumber = userRecord?.matric_number || userRecord?.matricNumber || undefined
 
       return {
         id: user.id,
+        fullName: fullName || user.user_metadata?.fullName || undefined,
         email: user.email!,
         role: (userRecord?.role as Role) || "STUDENT",
-        matricNumber: userRecord?.matricNumber,
-        avatarUrl: userRecord?.avatarUrl,
+        matricNumber: matricNumber || user.user_metadata?.matricNumber || undefined,
+        avatarUrl: avatarUrl || user.user_metadata?.avatar_url || undefined,
       }
     } catch (error) {
       console.error("getCurrentUser error:", error)
@@ -289,7 +294,10 @@ export class AuthService {
       return {
         id: user.id,
         email: user.email!,
-        role: "STUDENT",
+        fullName: user.user_metadata?.fullName || undefined,
+        matricNumber: user.user_metadata?.matricNumber || undefined,
+        avatarUrl: user.user_metadata?.avatar_url || undefined,
+        role: "STUDENT" as Role,
       }
     }
   }
