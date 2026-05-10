@@ -73,11 +73,11 @@ export default function FindSeatPage() {
     },
     zones: {
       all: true,
-      selected: [] as ("QUIET" | "GROUP" | "CHARGING")[], // Zone types
+      selected: ["QUIET", "GROUP", "CHARGING"] as ("QUIET" | "GROUP" | "CHARGING")[], // Zone types
     },
     features: {
       all: true,
-      selected: [] as string[], // Feature names
+      selected: ["Power Outlet", "Window View", "Dual Monitors", "Ergonomic Chair"] as string[], // Feature names
     }
   })
   
@@ -264,20 +264,23 @@ export default function FindSeatPage() {
       const zone = zones.find(z => z.id === seat.zoneId)
       const zoneType = zone?.type || "QUIET"
       
-      // Availability filter
-      if (!filters.availability.all) {
-        if (!filters.availability.available && dynamicStatus === "AVAILABLE") return false
-        if (!filters.availability.occupied && dynamicStatus === "OCCUPIED") return false
-        if (!filters.availability.reserved && dynamicStatus === "RESERVED") return false
+      // Availability filter - show seat if at least one selected status matches
+      const anyAvailabilitySelected = filters.availability.available || filters.availability.occupied || filters.availability.reserved
+      if (anyAvailabilitySelected) {
+        const matchesAvailability = 
+          (filters.availability.available && dynamicStatus === "AVAILABLE") ||
+          (filters.availability.occupied && dynamicStatus === "OCCUPIED") ||
+          (filters.availability.reserved && dynamicStatus === "RESERVED")
+        if (!matchesAvailability) return false
       }
 
-      // Zone filter
-      if (!filters.zones.all && filters.zones.selected.length > 0) {
+      // Zone filter - show seat if at least one selected zone type matches
+      if (filters.zones.selected.length > 0) {
         if (!filters.zones.selected.includes(zoneType as "QUIET" | "GROUP" | "CHARGING")) return false
       }
 
-      // Feature filter
-      if (!filters.features.all && filters.features.selected.length > 0) {
+      // Feature filter - show seat if it has at least one selected feature
+      if (filters.features.selected.length > 0) {
         const hasSelectedFeature = seat.features?.some(feature => 
           filters.features.selected.includes(feature)
         )
@@ -287,6 +290,13 @@ export default function FindSeatPage() {
       return true
     })
   }, [seats, filters, reservations, zones])
+
+  // Filtered zones for canvas rendering
+  const filteredZones = useMemo(() => {
+    return zones.filter(zone => 
+      filters.zones.selected.includes(zone.type as "QUIET" | "GROUP" | "CHARGING")
+    )
+  }, [zones, filters.zones.selected])
 
   // Stats
   const stats = useMemo(() => ({
@@ -512,7 +522,7 @@ export default function FindSeatPage() {
           <svg 
             width="100%" 
             height="100%" 
-            viewBox={`0 0 ${zones.reduce((max, z) => Math.max(max, (z.canvasWidth || 300) + 50), 300) * zones.length} ${zones.reduce((max, z) => Math.max(max, (z.canvasHeight || 400) + 50), 450)}`}
+            viewBox={`0 0 ${filteredZones.reduce((max, z) => Math.max(max, (z.canvasWidth || 300) + 50), 300) * filteredZones.length} ${filteredZones.reduce((max, z) => Math.max(max, (z.canvasHeight || 400) + 50), 450)}`}
             preserveAspectRatio="xMidYMid meet"
             style={{
               transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
@@ -521,8 +531,8 @@ export default function FindSeatPage() {
           >
             {/* Zone Backgrounds - Dynamic rendering from database */}
             <g>
-              {zones.map((zone, index) => {
-                const xOffset = zones.slice(0, index).reduce((sum, z) => sum + ((z.canvasWidth || 300) + 50), 50)
+              {filteredZones.map((zone, index) => {
+                const xOffset = filteredZones.slice(0, index).reduce((sum, z) => sum + ((z.canvasWidth || 300) + 50), 50)
                 const zoneColor = zone.color || "#E0F2FE"
                 const zoneName = zone.name || "Unknown Zone"
                 const zoneType = zone.type || "QUIET"
@@ -688,7 +698,12 @@ export default function FindSeatPage() {
               </div>
             </div>
             <div className="flex items-center justify-between pl-6">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 cursor-pointer" onClick={() => {
+                setFilters(f => ({ 
+                  ...f, 
+                  availability: { ...f.availability, available: !f.availability.available }
+                }))
+              }}>
                 <Checkbox 
                   id="available" 
                   checked={filters.availability.available}
@@ -700,14 +715,19 @@ export default function FindSeatPage() {
                   }
                 />
                 <div className="w-4 h-4 rounded bg-emerald-500" />
-                <Label htmlFor="available" className="text-sm font-medium text-slate-700">
+                <Label htmlFor="available" className="text-sm font-medium text-slate-700 cursor-pointer">
                   Available
                 </Label>
               </div>
               <span className="text-sm text-slate-500">{stats.available}</span>
             </div>
             <div className="flex items-center justify-between pl-6">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 cursor-pointer" onClick={() => {
+                setFilters(f => ({ 
+                  ...f, 
+                  availability: { ...f.availability, occupied: !f.availability.occupied }
+                }))
+              }}>
                 <Checkbox 
                   id="occupied" 
                   checked={filters.availability.occupied}
@@ -719,14 +739,19 @@ export default function FindSeatPage() {
                   }
                 />
                 <div className="w-4 h-4 rounded bg-rose-500" />
-                <Label htmlFor="occupied" className="text-sm font-medium text-slate-700">
+                <Label htmlFor="occupied" className="text-sm font-medium text-slate-700 cursor-pointer">
                   Occupied
                 </Label>
               </div>
               <span className="text-sm text-slate-500">{stats.occupied}</span>
             </div>
             <div className="flex items-center justify-between pl-6">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 cursor-pointer" onClick={() => {
+                setFilters(f => ({ 
+                  ...f, 
+                  availability: { ...f.availability, reserved: !f.availability.reserved }
+                }))
+              }}>
                 <Checkbox 
                   id="reserved" 
                   checked={filters.availability.reserved}
@@ -738,7 +763,7 @@ export default function FindSeatPage() {
                   }
                 />
                 <div className="w-4 h-4 rounded bg-amber-500" />
-                <Label htmlFor="reserved" className="text-sm font-medium text-slate-700">
+                <Label htmlFor="reserved" className="text-sm font-medium text-slate-700 cursor-pointer">
                   Reserved
                 </Label>
               </div>
@@ -769,7 +794,26 @@ export default function FindSeatPage() {
               { type: "CHARGING", label: "Charged Up Arena" },
               { type: "QUIET", label: "Quiet Zone" },
             ].map((zoneType) => (
-              <div key={zoneType.type} className="flex items-center gap-3 pl-6">
+              <div key={zoneType.type} className="flex items-center gap-3 pl-6 cursor-pointer" onClick={() => {
+                const isSelected = filters.zones.selected.includes(zoneType.type as "QUIET" | "GROUP" | "CHARGING")
+                if (isSelected) {
+                  setFilters(f => ({
+                    ...f,
+                    zones: {
+                      ...f.zones,
+                      selected: f.zones.selected.filter(t => t !== zoneType.type)
+                    }
+                  }))
+                } else {
+                  setFilters(f => ({
+                    ...f,
+                    zones: {
+                      ...f.zones,
+                      selected: [...f.zones.selected, zoneType.type as "QUIET" | "GROUP" | "CHARGING"]
+                    }
+                  }))
+                }
+              }}>
                 <Checkbox 
                   id={zoneType.type}
                   checked={filters.zones.selected.includes(zoneType.type as "QUIET" | "GROUP" | "CHARGING")}
@@ -793,7 +837,7 @@ export default function FindSeatPage() {
                     }
                   }}
                 />
-                <Label htmlFor={zoneType.type} className="text-sm text-slate-600">
+                <Label htmlFor={zoneType.type} className="text-sm text-slate-600 cursor-pointer">
                   {zoneType.label}
                 </Label>
               </div>
@@ -824,7 +868,26 @@ export default function FindSeatPage() {
               { name: "Dual Monitors", id: "monitors" },
               { name: "Ergonomic Chair", id: "ergonomic" },
             ].map((feature) => (
-              <div key={feature.id} className="flex items-center gap-3 pl-6">
+              <div key={feature.id} className="flex items-center gap-3 pl-6 cursor-pointer" onClick={() => {
+                const isSelected = filters.features.selected.includes(feature.name)
+                if (isSelected) {
+                  setFilters(f => ({
+                    ...f,
+                    features: {
+                      ...f.features,
+                      selected: f.features.selected.filter(name => name !== feature.name)
+                    }
+                  }))
+                } else {
+                  setFilters(f => ({
+                    ...f,
+                    features: {
+                      ...f.features,
+                      selected: [...f.features.selected, feature.name]
+                    }
+                  }))
+                }
+              }}>
                 <Checkbox 
                   id={feature.id}
                   checked={filters.features.selected.includes(feature.name)}
@@ -848,7 +911,7 @@ export default function FindSeatPage() {
                     }
                   }}
                 />
-                <Label htmlFor={feature.id} className="text-sm text-slate-600">
+                <Label htmlFor={feature.id} className="text-sm text-slate-600 cursor-pointer">
                   {feature.name}
                 </Label>
               </div>
