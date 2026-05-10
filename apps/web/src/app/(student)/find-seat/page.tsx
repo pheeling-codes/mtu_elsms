@@ -40,67 +40,22 @@ interface Seat {
 interface Zone {
   id: string
   name: string
-  description: string
+  type: "QUIET" | "GROUP" | "CHARGING"
   color: string
+  gridBlockSize?: number
+  canvasWidth?: number
+  canvasHeight?: number
 }
-
-// Demo zones
-const ZONES: Zone[] = [
-  { id: "quiet", name: "Quiet Zone", description: "Individual study area", color: "#E0F2FE" },
-  { id: "group", name: "Group Zone", description: "Collaborative workspace", color: "#F3E8FF" },
-  { id: "charging", name: "Charging Zone", description: "Power outlets available", color: "#ECFDF5" },
-]
-
-// Demo seat data with positions
-const DEMO_SEATS: Seat[] = [
-  // Quiet Zone - A1-A12
-  { id: "a1", seatNumber: "A1", zoneId: "quiet", status: "AVAILABLE", features: ["Power Outlet", "Window View"], x: 100, y: 100 },
-  { id: "a2", seatNumber: "A2", zoneId: "quiet", status: "OCCUPIED", features: ["Power Outlet"], x: 160, y: 100 },
-  { id: "a3", seatNumber: "A3", zoneId: "quiet", status: "RESERVED", features: ["Ergonomic Chair"], x: 100, y: 160 },
-  { id: "a4", seatNumber: "A4", zoneId: "quiet", status: "AVAILABLE", features: ["Power Outlet", "Window View"], x: 160, y: 160 },
-  { id: "a5", seatNumber: "A5", zoneId: "quiet", status: "AVAILABLE", features: ["Dual Monitors"], x: 300, y: 100 },
-  { id: "a6", seatNumber: "A6", zoneId: "quiet", status: "AVAILABLE", features: ["Power Outlet"], x: 360, y: 100 },
-  { id: "a7", seatNumber: "A7", zoneId: "quiet", status: "OCCUPIED", features: ["Window View"], x: 300, y: 160 },
-  { id: "a8", seatNumber: "A8", zoneId: "quiet", status: "AVAILABLE", features: ["Ergonomic Chair", "Power Outlet"], x: 360, y: 160 },
-  { id: "a9", seatNumber: "A9", zoneId: "quiet", status: "OCCUPIED", features: ["Power Outlet"], x: 500, y: 100 },
-  { id: "a10", seatNumber: "A10", zoneId: "quiet", status: "OCCUPIED", features: ["Window View"], x: 560, y: 100 },
-  { id: "a11", seatNumber: "A11", zoneId: "quiet", status: "RESERVED", features: ["Dual Monitors"], x: 500, y: 160 },
-  { id: "a12", seatNumber: "A12", zoneId: "quiet", status: "OCCUPIED", features: ["Ergonomic Chair"], x: 560, y: 160 },
-  
-  // Group Zone - G1-G4
-  { id: "g1", seatNumber: "G1", zoneId: "group", status: "AVAILABLE", features: ["Power Outlet", "Dual Monitors"], x: 700, y: 100 },
-  { id: "g2", seatNumber: "G2", zoneId: "group", status: "AVAILABLE", features: ["Power Outlet"], x: 700, y: 160 },
-  { id: "g3", seatNumber: "G3", zoneId: "group", status: "AVAILABLE", features: ["Window View"], x: 760, y: 100 },
-  { id: "g4", seatNumber: "G4", zoneId: "group", status: "AVAILABLE", features: ["Ergonomic Chair"], x: 760, y: 160 },
-  
-  // Charging Zone - B1-B12
-  { id: "b1", seatNumber: "B1", zoneId: "charging", status: "AVAILABLE", features: ["Power Outlet", "Window View"], x: 100, y: 350 },
-  { id: "b2", seatNumber: "B2", zoneId: "charging", status: "AVAILABLE", features: ["Power Outlet"], x: 160, y: 350 },
-  { id: "b3", seatNumber: "B3", zoneId: "charging", status: "AVAILABLE", features: ["Ergonomic Chair"], x: 100, y: 410 },
-  { id: "b4", seatNumber: "B4", zoneId: "charging", status: "AVAILABLE", features: ["Power Outlet", "Dual Monitors"], x: 160, y: 410 },
-  { id: "b5", seatNumber: "B5", zoneId: "charging", status: "RESERVED", features: ["Power Outlet"], x: 300, y: 350 },
-  { id: "b6", seatNumber: "B6", zoneId: "charging", status: "OCCUPIED", features: ["Window View"], x: 360, y: 350 },
-  { id: "b7", seatNumber: "B7", zoneId: "charging", status: "AVAILABLE", features: ["Power Outlet"], x: 300, y: 410 },
-  { id: "b8", seatNumber: "B8", zoneId: "charging", status: "AVAILABLE", features: ["Ergonomic Chair", "Power Outlet"], x: 360, y: 410 },
-  { id: "b9", seatNumber: "B9", zoneId: "charging", status: "OCCUPIED", features: ["Power Outlet"], x: 500, y: 350 },
-  { id: "b10", seatNumber: "B10", zoneId: "charging", status: "OCCUPIED", features: ["Dual Monitors"], x: 560, y: 350 },
-  { id: "b11", seatNumber: "B11", zoneId: "charging", status: "OCCUPIED", features: ["Power Outlet"], x: 500, y: 410 },
-  { id: "b12", seatNumber: "B12", zoneId: "charging", status: "OCCUPIED", features: ["Window View"], x: 560, y: 410 },
-  
-  // More Group Seats
-  { id: "g5", seatNumber: "G5", zoneId: "group", status: "RESERVED", features: ["Power Outlet", "Dual Monitors"], x: 700, y: 350 },
-  { id: "g6", seatNumber: "G6", zoneId: "group", status: "AVAILABLE", features: ["Power Outlet"], x: 760, y: 350 },
-  { id: "g7", seatNumber: "G7", zoneId: "group", status: "AVAILABLE", features: ["Ergonomic Chair"], x: 700, y: 410 },
-  { id: "g8", seatNumber: "G8", zoneId: "group", status: "RESERVED", features: ["Window View"], x: 760, y: 410 },
-]
 
 export default function FindSeatPage() {
   const router = useRouter()
   const [seats, setSeats] = useState<Seat[]>([])
   const [zones, setZones] = useState<Zone[]>([])
+  const [reservations, setReservations] = useState<any[]>([])
   const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
   const [isReservationOpen, setIsReservationOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [hoveredSeat, setHoveredSeat] = useState<Seat | null>(null)
   
   // Map view state
   const [scale, setScale] = useState(1)
@@ -110,20 +65,19 @@ export default function FindSeatPage() {
   
   // Filters
   const [filters, setFilters] = useState({
-    available: true,
-    occupied: true,
-    reserved: true,
+    availability: {
+      all: true,
+      available: true,
+      occupied: true,
+      reserved: true,
+    },
     zones: {
       all: true,
-      quiet: true,
-      group: true,
-      charging: true,
+      selected: [] as ("QUIET" | "GROUP" | "CHARGING")[], // Zone types
     },
     features: {
-      power: false,
-      window: false,
-      monitors: false,
-      ergonomic: false,
+      all: true,
+      selected: [] as string[], // Feature names
     }
   })
   
@@ -133,10 +87,29 @@ export default function FindSeatPage() {
   const [endTime, setEndTime] = useState("12:00")
   const [isReserving, setIsReserving] = useState(false)
 
-  // Fetch seats and zones from database
+  // Fetch seats, zones, and reservations from database
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Fetch zones with seat count > 0
+        const { data: zonesData, error: zonesError } = await supabase
+          .from('zones')
+          .select(`
+            id,
+            name,
+            type,
+            color,
+            gridblocksize,
+            canvaswidth,
+            canvasheight,
+            seats(count)
+          `)
+        
+        if (zonesError) throw zonesError
+        
+        // Filter zones that have seats
+        const zonesWithSeats = zonesData?.filter((zone: any) => zone.seats && zone.seats[0]?.count > 0) || []
+        
         // Fetch seats
         const { data: seatsData, error: seatsError } = await supabase
           .from('seats')
@@ -145,15 +118,17 @@ export default function FindSeatPage() {
         
         if (seatsError) throw seatsError
         
-        // Fetch zones
-        const { data: zonesData, error: zonesError } = await supabase
-          .from('zones')
+        // Fetch active reservations
+        const { data: reservationsData, error: reservationsError } = await supabase
+          .from('reservations')
           .select('*')
+          .in('status', ['ACTIVE', 'UPCOMING'])
         
-        if (zonesError) throw zonesError
+        if (reservationsError) throw reservationsError
         
         setSeats(seatsData || [])
-        setZones(zonesData || [])
+        setZones(zonesWithSeats)
+        setReservations(reservationsData || [])
       } catch (error) {
         console.error('Error fetching data:', error)
         toast.error('Failed to load seats', {
@@ -166,6 +141,47 @@ export default function FindSeatPage() {
     
     fetchData()
   }, [])
+
+  // Helper function to get current time in WAT (West African Time)
+  const getCurrentWATTime = () => {
+    const now = new Date()
+    // WAT is UTC+1
+    const watOffset = 1 * 60 // 1 hour in minutes
+    const localOffset = now.getTimezoneOffset() // in minutes (negative for ahead of UTC)
+    const totalOffset = watOffset + localOffset
+    const watTime = new Date(now.getTime() + totalOffset * 60 * 1000)
+    return watTime
+  }
+
+  // Helper function to calculate dynamic seat status based on reservations
+  const getDynamicSeatStatus = (seat: Seat): "AVAILABLE" | "OCCUPIED" | "RESERVED" => {
+    const now = getCurrentWATTime()
+    
+    // Check if seat has an active reservation at current time
+    const activeReservation = reservations.find(res => 
+      res.seatId === seat.id && 
+      res.status === 'ACTIVE' &&
+      new Date(res.startTime) <= now &&
+      new Date(res.endTime) > now
+    )
+    
+    if (activeReservation) {
+      return "OCCUPIED"
+    }
+    
+    // Check if seat has an upcoming reservation
+    const upcomingReservation = reservations.find(res => 
+      res.seatId === seat.id && 
+      res.status === 'UPCOMING' &&
+      new Date(res.startTime) > now
+    )
+    
+    if (upcomingReservation) {
+      return "RESERVED"
+    }
+    
+    return "AVAILABLE"
+  }
 
   // Real-time seat updates
   useEffect(() => {
@@ -192,31 +208,92 @@ export default function FindSeatPage() {
     }
   }, [selectedSeat])
 
+  // Real-time zone updates
+  useEffect(() => {
+    const channel = supabase
+      .channel("zone_updates")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "zones" },
+        (payload: { new?: Zone }) => {
+          if (payload.new) {
+            setZones((prev) =>
+              prev.map((z) => (z.id === payload.new!.id ? { ...z, ...payload.new } : z))
+            )
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  // Real-time reservation updates
+  useEffect(() => {
+    const channel = supabase
+      .channel("reservation_updates")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reservations" },
+        (payload: { new?: any }) => {
+          if (payload.new) {
+            setReservations((prev) => {
+              const existingIndex = prev.findIndex(r => r.id === payload.new!.id)
+              if (existingIndex >= 0) {
+                return prev.map((r, i) => i === existingIndex ? payload.new : r)
+              } else {
+                return [...prev, payload.new]
+              }
+            })
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
   // Filter logic
   const filteredSeats = useMemo(() => {
     return seats.filter((seat) => {
+      const dynamicStatus = getDynamicSeatStatus(seat)
+      const zone = zones.find(z => z.id === seat.zoneId)
+      const zoneType = zone?.type || "QUIET"
+      
       // Availability filter
-      if (!filters.available && seat.status === "AVAILABLE") return false
-      if (!filters.occupied && seat.status === "OCCUPIED") return false
-      if (!filters.reserved && seat.status === "RESERVED") return false
+      if (!filters.availability.all) {
+        if (!filters.availability.available && dynamicStatus === "AVAILABLE") return false
+        if (!filters.availability.occupied && dynamicStatus === "OCCUPIED") return false
+        if (!filters.availability.reserved && dynamicStatus === "RESERVED") return false
+      }
 
       // Zone filter
-      if (!filters.zones.all) {
-        if (seat.zoneId === "quiet" && !filters.zones.quiet) return false
-        if (seat.zoneId === "group" && !filters.zones.group) return false
-        if (seat.zoneId === "charging" && !filters.zones.charging) return false
+      if (!filters.zones.all && filters.zones.selected.length > 0) {
+        if (!filters.zones.selected.includes(zoneType as "QUIET" | "GROUP" | "CHARGING")) return false
+      }
+
+      // Feature filter
+      if (!filters.features.all && filters.features.selected.length > 0) {
+        const hasSelectedFeature = seat.features?.some(feature => 
+          filters.features.selected.includes(feature)
+        )
+        if (!hasSelectedFeature) return false
       }
 
       return true
     })
-  }, [seats, filters])
+  }, [seats, filters, reservations, zones])
 
   // Stats
   const stats = useMemo(() => ({
-    available: seats.filter((s) => s.status === "AVAILABLE").length,
-    occupied: seats.filter((s) => s.status === "OCCUPIED").length,
-    reserved: seats.filter((s) => s.status === "RESERVED").length,
-  }), [seats])
+    available: seats.filter((s) => getDynamicSeatStatus(s) === "AVAILABLE").length,
+    occupied: seats.filter((s) => getDynamicSeatStatus(s) === "OCCUPIED").length,
+    reserved: seats.filter((s) => getDynamicSeatStatus(s) === "RESERVED").length,
+  }), [seats, reservations])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -301,6 +378,11 @@ export default function FindSeatPage() {
         return
       }
 
+      // Get user identity from metadata
+      const fullName = user.user_metadata?.fullName || undefined
+      const email = user.email || undefined
+      const matricNumber = user.user_metadata?.matricNumber || undefined
+
       // Calculate times
       const now = new Date()
       const startDateTime = new Date(now)
@@ -311,15 +393,22 @@ export default function FindSeatPage() {
       const [endHour, endMinute] = endTime.split(':').map(Number)
       endDateTime.setHours(endHour, endMinute, 0, 0)
       
-      // Create reservation record
+      // Get zone ID for the selected seat
+      const zoneId = selectedSeat.zoneId
+      
+      // Create reservation record with identity fields
       const { data: reservation, error: reservationError } = await supabase
         .from('reservations')
         .insert({
           userId: user.id,
           seatId: selectedSeat.id,
+          zoneId: zoneId,
           startTime: startDateTime.toISOString(),
           endTime: endDateTime.toISOString(),
           status: 'UPCOMING',
+          fullName: fullName,
+          email: email,
+          matricNumber: matricNumber,
         })
         .select()
         .single()
@@ -423,36 +512,57 @@ export default function FindSeatPage() {
           <svg 
             width="100%" 
             height="100%" 
-            viewBox="0 0 1080 520"
+            viewBox={`0 0 ${zones.reduce((max, z) => Math.max(max, (z.canvasWidth || 300) + 50), 300) * zones.length} ${zones.reduce((max, z) => Math.max(max, (z.canvasHeight || 400) + 50), 450)}`}
             preserveAspectRatio="xMidYMid meet"
             style={{
               transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
               transformOrigin: 'center center'
             }}
           >
-            {/* Zone Backgrounds - Three distinct vertical columns */}
+            {/* Zone Backgrounds - Dynamic rendering from database */}
             <g>
-              {/* Quiet Zone - Left column */}
-              <rect x="50" y="50" width="300" height="400" fill="#E0F2FE" rx="12" opacity="0.6" stroke="#bae6fd" strokeWidth="2" />
-              <text x="200" y="80" textAnchor="middle" className="text-sm font-bold fill-slate-600 uppercase tracking-wider">QUIET ZONE</text>
-              <text x="200" y="100" textAnchor="middle" className="text-xs fill-slate-400">Silent Study Area</text>
-              
-              {/* Group Zone - Middle column */}
-              <rect x="380" y="50" width="300" height="400" fill="#F3E8FF" rx="12" opacity="0.6" stroke="#e9d5ff" strokeWidth="2" />
-              <text x="530" y="80" textAnchor="middle" className="text-sm font-bold fill-slate-600 uppercase tracking-wider">GROUP ZONE</text>
-              <text x="530" y="100" textAnchor="middle" className="text-xs fill-slate-400">Collaborative Space</text>
-              
-              {/* Charging Zone - Right column */}
-              <rect x="710" y="50" width="300" height="400" fill="#ECFDF5" rx="12" opacity="0.6" stroke="#a7f3d0" strokeWidth="2" />
-              <text x="860" y="80" textAnchor="middle" className="text-sm font-bold fill-slate-600 uppercase tracking-wider">CHARGING ZONE</text>
-              <text x="860" y="100" textAnchor="middle" className="text-xs fill-slate-400">Power + USB Available</text>
+              {zones.map((zone, index) => {
+                const xOffset = zones.slice(0, index).reduce((sum, z) => sum + ((z.canvasWidth || 300) + 50), 50)
+                const zoneColor = zone.color || "#E0F2FE"
+                const zoneName = zone.name || "Unknown Zone"
+                const zoneType = zone.type || "QUIET"
+                const canvasWidth = zone.canvasWidth || 300
+                const canvasHeight = zone.canvasHeight || 400
+                
+                return (
+                  <g key={zone.id}>
+                    {/* Zone Background */}
+                    <rect 
+                      x={xOffset} 
+                      y="50" 
+                      width={canvasWidth} 
+                      height={canvasHeight} 
+                      fill={zoneColor} 
+                      rx="12" 
+                      opacity="0.6" 
+                      stroke={zoneColor}
+                      strokeWidth="2" 
+                    />
+                    {/* Zone Label */}
+                    <text x={xOffset + canvasWidth / 2} y="80" textAnchor="middle" className="text-sm font-bold fill-slate-600 uppercase tracking-wider">
+                      {zoneName}
+                    </text>
+                    <text x={xOffset + canvasWidth / 2} y="100" textAnchor="middle" className="text-xs fill-slate-400">
+                      {zoneType === "QUIET" && "Silent Study Area"}
+                      {zoneType === "GROUP" && "Collaborative Space"}
+                      {zoneType === "CHARGING" && "Power + USB Available"}
+                    </text>
+                  </g>
+                )
+              })}
             </g>
 
-            {/* Seats */}
+            {/* Seats - Dynamic rendering from database coordinates */}
             <g>
               {filteredSeats.map((seat) => {
-                const color = getStatusColor(seat.status)
-                const isAvailable = seat.status === "AVAILABLE"
+                const dynamicStatus = getDynamicSeatStatus(seat)
+                const color = getStatusColor(dynamicStatus)
+                const isAvailable = dynamicStatus === "AVAILABLE"
                 return (
                   <g key={seat.id}>
                     {/* Seat Button Background */}
@@ -465,6 +575,8 @@ export default function FindSeatPage() {
                       fill={color}
                       className={isAvailable ? "cursor-pointer hover:brightness-110" : "cursor-not-allowed"}
                       onClick={() => handleSeatClick(seat)}
+                      onMouseEnter={() => setHoveredSeat(seat)}
+                      onMouseLeave={() => setHoveredSeat(null)}
                     />
                     {/* Seat Label */}
                     <text
@@ -479,6 +591,39 @@ export default function FindSeatPage() {
                 )
               })}
             </g>
+
+            {/* Hover Tooltip */}
+            {hoveredSeat && (
+              <g>
+                <rect
+                  x={(hoveredSeat.x || 0) - 60}
+                  y={(hoveredSeat.y || 0) - 70}
+                  width="120"
+                  height="40"
+                  rx="8"
+                  fill="white"
+                  stroke="#e2e8f0"
+                  strokeWidth="1"
+                  opacity="0.95"
+                />
+                <text
+                  x={hoveredSeat.x || 0}
+                  y={(hoveredSeat.y || 0) - 55}
+                  textAnchor="middle"
+                  className="text-xs font-semibold fill-slate-900"
+                >
+                  {hoveredSeat.seatNumber}
+                </text>
+                <text
+                  x={hoveredSeat.x || 0}
+                  y={(hoveredSeat.y || 0) - 40}
+                  textAnchor="middle"
+                  className="text-xs fill-slate-500"
+                >
+                  {hoveredSeat.features?.slice(0, 2).join(", ") || "No features"}
+                </text>
+              </g>
+            )}
           </svg>
         </div>
 
@@ -532,10 +677,26 @@ export default function FindSeatPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Checkbox 
+                  id="all" 
+                  checked={filters.availability.all}
+                  disabled
+                  className="pointer-events-none"
+                />
+                <Label htmlFor="all" className="text-sm font-medium text-slate-700">
+                  All Seats
+                </Label>
+              </div>
+            </div>
+            <div className="flex items-center justify-between pl-6">
+              <div className="flex items-center gap-3">
+                <Checkbox 
                   id="available" 
-                  checked={filters.available}
+                  checked={filters.availability.available}
                   onCheckedChange={(checked: boolean | "indeterminate") => 
-                    setFilters(f => ({ ...f, available: checked === true }))
+                    setFilters(f => ({ 
+                      ...f, 
+                      availability: { ...f.availability, available: checked === true }
+                    }))
                   }
                 />
                 <div className="w-4 h-4 rounded bg-emerald-500" />
@@ -545,13 +706,16 @@ export default function FindSeatPage() {
               </div>
               <span className="text-sm text-slate-500">{stats.available}</span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between pl-6">
               <div className="flex items-center gap-3">
                 <Checkbox 
                   id="occupied" 
-                  checked={filters.occupied}
+                  checked={filters.availability.occupied}
                   onCheckedChange={(checked: boolean | "indeterminate") => 
-                    setFilters(f => ({ ...f, occupied: checked === true }))
+                    setFilters(f => ({ 
+                      ...f, 
+                      availability: { ...f.availability, occupied: checked === true }
+                    }))
                   }
                 />
                 <div className="w-4 h-4 rounded bg-rose-500" />
@@ -561,13 +725,16 @@ export default function FindSeatPage() {
               </div>
               <span className="text-sm text-slate-500">{stats.occupied}</span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between pl-6">
               <div className="flex items-center gap-3">
                 <Checkbox 
                   id="reserved" 
-                  checked={filters.reserved}
+                  checked={filters.availability.reserved}
                   onCheckedChange={(checked: boolean | "indeterminate") => 
-                    setFilters(f => ({ ...f, reserved: checked === true }))
+                    setFilters(f => ({ 
+                      ...f, 
+                      availability: { ...f.availability, reserved: checked === true }
+                    }))
                   }
                 />
                 <div className="w-4 h-4 rounded bg-amber-500" />
@@ -590,65 +757,47 @@ export default function FindSeatPage() {
               <Checkbox 
                 id="allZones" 
                 checked={filters.zones.all}
-                onCheckedChange={(checked: boolean | "indeterminate") => 
-                  setFilters(f => ({ 
-                    ...f, 
-                    zones: { ...f.zones, all: checked === true }
-                  }))
-                }
+                disabled
+                className="pointer-events-none"
               />
               <Label htmlFor="allZones" className="text-sm font-medium text-slate-700">
                 All Zones
               </Label>
             </div>
-            <div className="flex items-center gap-3 pl-6">
-              <Checkbox 
-                id="quiet" 
-                checked={filters.zones.quiet || filters.zones.all}
-                disabled={filters.zones.all}
-                onCheckedChange={(checked: boolean | "indeterminate") => 
-                  setFilters(f => ({ 
-                    ...f, 
-                    zones: { ...f.zones, quiet: checked === true }
-                  }))
-                }
-              />
-              <Label htmlFor="quiet" className="text-sm text-slate-600">
-                Quiet Zone
-              </Label>
-            </div>
-            <div className="flex items-center gap-3 pl-6">
-              <Checkbox 
-                id="group" 
-                checked={filters.zones.group || filters.zones.all}
-                disabled={filters.zones.all}
-                onCheckedChange={(checked: boolean | "indeterminate") => 
-                  setFilters(f => ({ 
-                    ...f, 
-                    zones: { ...f.zones, group: checked === true }
-                  }))
-                }
-              />
-              <Label htmlFor="group" className="text-sm text-slate-600">
-                Group Zone
-              </Label>
-            </div>
-            <div className="flex items-center gap-3 pl-6">
-              <Checkbox 
-                id="charging" 
-                checked={filters.zones.charging || filters.zones.all}
-                disabled={filters.zones.all}
-                onCheckedChange={(checked: boolean | "indeterminate") => 
-                  setFilters(f => ({ 
-                    ...f, 
-                    zones: { ...f.zones, charging: checked === true }
-                  }))
-                }
-              />
-              <Label htmlFor="charging" className="text-sm text-slate-600">
-                Charging Zone
-              </Label>
-            </div>
+            {[
+              { type: "GROUP", label: "Group Study" },
+              { type: "CHARGING", label: "Charged Up Arena" },
+              { type: "QUIET", label: "Quiet Zone" },
+            ].map((zoneType) => (
+              <div key={zoneType.type} className="flex items-center gap-3 pl-6">
+                <Checkbox 
+                  id={zoneType.type}
+                  checked={filters.zones.selected.includes(zoneType.type as "QUIET" | "GROUP" | "CHARGING")}
+                  onCheckedChange={(checked: boolean | "indeterminate") => {
+                    if (checked === true) {
+                      setFilters(f => ({
+                        ...f,
+                        zones: {
+                          ...f.zones,
+                          selected: [...f.zones.selected, zoneType.type as "QUIET" | "GROUP" | "CHARGING"]
+                        }
+                      }))
+                    } else {
+                      setFilters(f => ({
+                        ...f,
+                        zones: {
+                          ...f.zones,
+                          selected: f.zones.selected.filter(t => t !== zoneType.type)
+                        }
+                      }))
+                    }
+                  }}
+                />
+                <Label htmlFor={zoneType.type} className="text-sm text-slate-600">
+                  {zoneType.label}
+                </Label>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -660,64 +809,50 @@ export default function FindSeatPage() {
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <Checkbox 
-                id="power" 
-                checked={filters.features.power}
-                onCheckedChange={(checked: boolean | "indeterminate") => 
-                  setFilters(f => ({ 
-                    ...f, 
-                    features: { ...f.features, power: checked === true }
-                  }))
-                }
+                id="allFeatures" 
+                checked={filters.features.all}
+                disabled
+                className="pointer-events-none"
               />
-              <Label htmlFor="power" className="text-sm text-slate-600">
-                Power Outlets
+              <Label htmlFor="allFeatures" className="text-sm font-medium text-slate-700">
+                All Seats
               </Label>
             </div>
-            <div className="flex items-center gap-3">
-              <Checkbox 
-                id="window" 
-                checked={filters.features.window}
-                onCheckedChange={(checked: boolean | "indeterminate") => 
-                  setFilters(f => ({ 
-                    ...f, 
-                    features: { ...f.features, window: checked === true }
-                  }))
-                }
-              />
-              <Label htmlFor="window" className="text-sm text-slate-600">
-                Window View
-              </Label>
-            </div>
-            <div className="flex items-center gap-3">
-              <Checkbox 
-                id="monitors" 
-                checked={filters.features.monitors}
-                onCheckedChange={(checked: boolean | "indeterminate") => 
-                  setFilters(f => ({ 
-                    ...f, 
-                    features: { ...f.features, monitors: checked === true }
-                  }))
-                }
-              />
-              <Label htmlFor="monitors" className="text-sm text-slate-600">
-                Dual Monitors
-              </Label>
-            </div>
-            <div className="flex items-center gap-3">
-              <Checkbox 
-                id="ergonomic" 
-                checked={filters.features.ergonomic}
-                onCheckedChange={(checked: boolean | "indeterminate") => 
-                  setFilters(f => ({ 
-                    ...f, 
-                    features: { ...f.features, ergonomic: checked === true }
-                  }))
-                }
-              />
-              <Label htmlFor="ergonomic" className="text-sm text-slate-600">
-                Ergonomic Chair
-              </Label>
-            </div>
+            {[
+              { name: "Power Outlet", id: "power" },
+              { name: "Window View", id: "window" },
+              { name: "Dual Monitors", id: "monitors" },
+              { name: "Ergonomic Chair", id: "ergonomic" },
+            ].map((feature) => (
+              <div key={feature.id} className="flex items-center gap-3 pl-6">
+                <Checkbox 
+                  id={feature.id}
+                  checked={filters.features.selected.includes(feature.name)}
+                  onCheckedChange={(checked: boolean | "indeterminate") => {
+                    if (checked === true) {
+                      setFilters(f => ({
+                        ...f,
+                        features: {
+                          ...f.features,
+                          selected: [...f.features.selected, feature.name]
+                        }
+                      }))
+                    } else {
+                      setFilters(f => ({
+                        ...f,
+                        features: {
+                          ...f.features,
+                          selected: f.features.selected.filter(name => name !== feature.name)
+                        }
+                      }))
+                    }
+                  }}
+                />
+                <Label htmlFor={feature.id} className="text-sm text-slate-600">
+                  {feature.name}
+                </Label>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -750,9 +885,7 @@ export default function FindSeatPage() {
                     <div className="flex items-center gap-2 mt-2">
                       {getStatusBadge(selectedSeat.status)}
                       <Badge variant="secondary" className="text-slate-600">
-                        {selectedSeat.zoneId === "quiet" && "Quiet Zone"}
-                        {selectedSeat.zoneId === "group" && "Group Zone"}
-                        {selectedSeat.zoneId === "charging" && "Charging Zone"}
+                        {zones.find(z => z.id === selectedSeat.zoneId)?.name || "Unknown Zone"}
                       </Badge>
                     </div>
                   </div>
@@ -779,13 +912,20 @@ export default function FindSeatPage() {
                 <div className="mb-6">
                   <h3 className="text-sm font-semibold text-slate-900 mb-4">Seat Features</h3>
                   <div className="space-y-3">
-                    {selectedSeat.features?.map((feature) => (
-                      <div key={feature} className="flex items-center gap-3 text-sm text-slate-600">
-                        {feature === "Power Outlet" && <Zap className="w-4 h-4 text-slate-400" />}
-                        {feature === "Window View" && <Sun className="w-4 h-4 text-slate-400" />}
-                        {feature === "Dual Monitors" && <Monitor className="w-4 h-4 text-slate-400" />}
-                        {feature === "Ergonomic Chair" && <Armchair className="w-4 h-4 text-slate-400" />}
-                        {feature}
+                    {[
+                      { name: "Power Outlet", icon: Zap },
+                      { name: "Window View", icon: Sun },
+                      { name: "Dual Monitors", icon: Monitor },
+                      { name: "Ergonomic Chair", icon: Armchair },
+                    ].map((feature) => (
+                      <div key={feature.name} className="flex items-center gap-3 text-sm text-slate-600">
+                        <Checkbox 
+                          checked={selectedSeat.features?.includes(feature.name)}
+                          disabled
+                          className="pointer-events-none"
+                        />
+                        <feature.icon className="w-4 h-4 text-slate-400" />
+                        <span>{feature.name}</span>
                       </div>
                     ))}
                   </div>
