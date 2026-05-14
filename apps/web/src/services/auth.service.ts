@@ -284,7 +284,7 @@ export class AuthService {
         const basicUser = {
           id: user.id,
           email: user.email!,
-          fullName: user.user_metadata?.fullName || undefined,
+          fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || undefined,
           matricNumber: user.user_metadata?.matricNumber || undefined,
           avatarUrl: user.user_metadata?.avatar_url || undefined,
           role: (user.user_metadata?.role as Role) || "STUDENT",

@@ -93,10 +93,25 @@ export default function FindSeatPage() {
   })
   
   // Reservation form
-  const [reservationDate, setReservationDate] = useState(new Date().toISOString().split("T")[0])
+  const [reservationDate, setReservationDate] = useState(() => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  })
   const [startTime, setStartTime] = useState("10:00")
   const [endTime, setEndTime] = useState("12:00")
   const [isReserving, setIsReserving] = useState(false)
+
+  // Generate time options from 06:00 to 22:00 (library hours)
+  const timeOptions = Array.from({ length: 17 }, (_, i) => {
+    const hour = 6 + i
+    const timeStr = `${String(hour).padStart(2, '0')}:00`
+    const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour
+    const ampm = hour >= 12 ? 'PM' : 'AM'
+    return { value: timeStr, label: `${String(displayHour).padStart(2, '0')}:00 ${ampm}` }
+  })
 
   // Fetch seats, zones, and reservations from database
   useEffect(() => {
@@ -446,13 +461,20 @@ export default function FindSeatPage() {
   }
 
   const handleReserve = async () => {
-    if (!selectedSeat) return
-    
+    console.log('handleReserve called, selectedSeat:', selectedSeat)
+    if (!selectedSeat) {
+      console.log('No seat selected')
+      return
+    }
+
     setIsReserving(true)
     try {
+      console.log('Getting current user...')
       // Get current user with complete identity
       const currentUser = await AuthService.getCurrentUser()
+      console.log('Current user:', currentUser)
       if (!currentUser) {
+        console.log('No authenticated user')
         toast.error("Authentication Required", {
           description: "Please sign in to make a reservation.",
         })
@@ -461,7 +483,9 @@ export default function FindSeatPage() {
 
       // Calculate times
       const now = new Date()
-      const selectedDate = new Date(reservationDate)
+      // Parse date as local time by splitting the date string
+      const [year, month, day] = reservationDate.split('-').map(Number)
+      const selectedDate = new Date(year, month - 1, day) // month is 0-indexed in Date constructor
       const startDateTime = new Date(selectedDate)
       const [startHour, startMinute] = startTime.split(':').map(Number)
       startDateTime.setHours(startHour, startMinute, 0, 0)
@@ -469,6 +493,43 @@ export default function FindSeatPage() {
       const endDateTime = new Date(selectedDate)
       const [endHour, endMinute] = endTime.split(':').map(Number)
       endDateTime.setHours(endHour, endMinute, 0, 0)
+
+      // Validate time interval (1-4 hours)
+      const durationHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60)
+      console.log('Duration hours:', durationHours)
+      if (durationHours < 1) {
+        console.log('Duration less than 1 hour')
+        toast.error("Invalid Duration", {
+          description: "Reservation duration must be at least 1 hour.",
+        })
+        return
+      }
+      if (durationHours > 4) {
+        console.log('Duration more than 4 hours')
+        toast.error("Invalid Duration", {
+          description: "Reservation duration cannot exceed 4 hours.",
+        })
+        return
+      }
+      if (startHour === endHour) {
+        console.log('Start hour equals end hour')
+        toast.error("Invalid Time", {
+          description: "Start time and end time cannot be the same.",
+        })
+        return
+      }
+
+      // Validate that date and time are not in the past
+      console.log('Checking if date/time is in the past:', startDateTime, now)
+      if (startDateTime < now) {
+        console.log('Date/time is in the past')
+        toast.error("Invalid Date/Time", {
+          description: "Cannot make reservations for past dates or times.",
+        })
+        return
+      }
+
+      console.log('Validation passed, creating reservation...')
 
       // Atomic transaction: Create reservation and update seat atomically
       // Use Supabase transaction to ensure data consistency
@@ -1172,6 +1233,7 @@ export default function FindSeatPage() {
                         value={reservationDate}
                         onChange={(e) => setReservationDate(e.target.value)}
                         className="pl-10"
+                        min={new Date().toISOString().split("T")[0]}
                       />
                     </div>
                   </div>
@@ -1185,18 +1247,11 @@ export default function FindSeatPage() {
                         <select 
                           value={startTime}
                           onChange={(e) => setStartTime(e.target.value)}
-                          className="w-full pl-10 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          className="w-full pl-10 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 max-h-40 overflow-y-auto"
                         >
-                          <option value="08:00">08:00 AM</option>
-                          <option value="09:00">09:00 AM</option>
-                          <option value="10:00">10:00 AM</option>
-                          <option value="11:00">11:00 AM</option>
-                          <option value="12:00">12:00 PM</option>
-                          <option value="13:00">01:00 PM</option>
-                          <option value="14:00">02:00 PM</option>
-                          <option value="15:00">03:00 PM</option>
-                          <option value="16:00">04:00 PM</option>
-                          <option value="17:00">05:00 PM</option>
+                          {timeOptions.map(option => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
                         </select>
                       </div>
                     </div>
@@ -1207,18 +1262,11 @@ export default function FindSeatPage() {
                         <select 
                           value={endTime}
                           onChange={(e) => setEndTime(e.target.value)}
-                          className="w-full pl-10 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          className="w-full pl-10 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 max-h-40 overflow-y-auto"
                         >
-                          <option value="09:00">09:00 AM</option>
-                          <option value="10:00">10:00 AM</option>
-                          <option value="11:00">11:00 AM</option>
-                          <option value="12:00">12:00 PM</option>
-                          <option value="13:00">01:00 PM</option>
-                          <option value="14:00">02:00 PM</option>
-                          <option value="15:00">03:00 PM</option>
-                          <option value="16:00">04:00 PM</option>
-                          <option value="17:00">05:00 PM</option>
-                          <option value="18:00">06:00 PM</option>
+                          {timeOptions.map(option => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
                         </select>
                       </div>
                     </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { QRCodeSVG } from "qrcode.react"
+import { useToast } from "@/hooks/use-toast"
 import {
   Calendar,
   Clock,
@@ -40,6 +41,8 @@ import {
   DialogContent,
   DialogTitle,
   DialogDescription,
+  DialogHeader,
+  DialogFooter,
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
 import { supabase } from "@/lib/supabase"
@@ -53,7 +56,7 @@ interface Reservation {
   date: string
   startTime: string
   endTime: string
-  status: "active" | "upcoming" | "past" | "reserved"
+  status: "RESERVED" | "ACTIVE" | "COMPLETED" | "CANCELLED" | "NO_SHOW"
   features: string[]
   checkInDeadline?: Date
 }
@@ -68,7 +71,7 @@ const mockReservations: Reservation[] = [
     date: "Today, 24 Oct 2023",
     startTime: "02:00 PM",
     endTime: "04:00 PM",
-    status: "upcoming",
+    status: "RESERVED",
     features: ["Power Outlet"],
     checkInDeadline: new Date(Date.now() + 15 * 60 * 1000), // 15 mins from now
   },
@@ -80,7 +83,7 @@ const mockReservations: Reservation[] = [
     date: "Tomorrow, 25 Oct 2023",
     startTime: "10:00 AM",
     endTime: "12:00 PM",
-    status: "upcoming",
+    status: "RESERVED",
     features: ["Dual Monitors"],
   },
   {
@@ -91,7 +94,7 @@ const mockReservations: Reservation[] = [
     date: "Mon, 28 Oct 2023",
     startTime: "09:00 AM",
     endTime: "01:00 PM",
-    status: "upcoming",
+    status: "RESERVED",
     features: ["Window View"],
   },
 ]
@@ -146,9 +149,11 @@ function FeatureIcon({ feature }: { feature: string }) {
 export default function ReservationsPage() {
   const router = useRouter()
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState("upcoming")
+  const { toast } = useToast()
+  const [activeTab, setActiveTab] = useState("RESERVED")
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -187,20 +192,8 @@ export default function ReservationsPage() {
             const endTime = new Date(item.endtime)
             const now = new Date()
 
-            let status: Reservation['status'] = 'upcoming'
-            // Explicitly handle database status values
-            if (item.status === 'ACTIVE') status = 'active'
-            else if (item.status === 'RESERVED') {
-              // Reserved reservations are upcoming if start time is in future, active if currently in progress
-              if (startTime <= now && endTime > now) status = 'active'
-              else if (startTime > now) status = 'upcoming'
-              else status = 'past'
-            }
-            else if (item.status === 'COMPLETED' || item.status === 'CANCELLED' || item.status === 'NO_SHOW') status = 'past'
-            // Fallback to time-based logic for unknown statuses
-            else if (startTime <= now && endTime > now) status = 'active'
-            else if (startTime > now) status = 'upcoming'
-            else status = 'past'
+            // Use actual database status directly
+            const status = item.status as Reservation['status']
 
             return {
               id: item.id,
@@ -212,7 +205,7 @@ export default function ReservationsPage() {
               endTime: formatTime(new Date(item.endtime)),
               status,
               features: [], // Default empty features since we're not doing joins
-              checkInDeadline: status === 'upcoming' ? new Date(startTime.getTime() - 15 * 60 * 1000) : undefined
+              checkInDeadline: status === 'RESERVED' && startTime > now ? new Date(startTime.getTime() - 15 * 60 * 1000) : undefined
             }
           } catch (error) {
             console.error('Error transforming reservation item:', item, error)
@@ -236,15 +229,20 @@ export default function ReservationsPage() {
   // Count by status
   const counts = useMemo(() => {
     return {
-      active: reservations.filter((r) => r.status === "active").length,
-      upcoming: reservations.filter((r) => r.status === "upcoming").length,
-      past: reservations.filter((r) => r.status === "past").length,
+      active: reservations.filter((r) => r.status === "ACTIVE").length,
+      upcoming: reservations.filter((r) => r.status === "RESERVED").length,
+      past: reservations.filter((r) => ["COMPLETED", "CANCELLED", "NO_SHOW"].includes(r.status)).length,
     }
   }, [reservations])
 
   // Filter reservations by active tab
   const filteredReservations = useMemo(() => {
-    const filtered = reservations.filter((r) => r.status === activeTab)
+    const filtered = reservations.filter((r) => {
+      if (activeTab === "RESERVED") return r.status === "RESERVED"
+      if (activeTab === "ACTIVE") return r.status === "ACTIVE"
+      if (activeTab === "past") return ["COMPLETED", "CANCELLED", "NO_SHOW"].includes(r.status)
+      return false
+    })
     console.log('Active tab:', activeTab, 'Filtered reservations:', filtered.length, 'Total reservations:', reservations.length)
     return filtered
   }, [reservations, activeTab])
@@ -263,33 +261,82 @@ export default function ReservationsPage() {
   }
 
   // Handle cancel
-  const handleCancel = async (reservationId: string) => {
-    // TODO: Implement Supabase mutation
-    console.log("Cancelling...", reservationId)
+  const handleCancel = async (reservation: Reservation) => {
+    setSelectedReservation(reservation)
+    setCancelDialogOpen(true)
+  }
+
+  const confirmCancel = async () => {
+    if (!selectedReservation) return
+
+    try {
+      const { error } = await supabase
+        .from('reservations')
+        .update({ status: 'CANCELLED' })
+        .eq('id', selectedReservation.id)
+
+      if (error) throw error
+
+      toast({
+        title: "Reservation Cancelled",
+        description: "Your reservation has been cancelled successfully",
+      })
+
+      setCancelDialogOpen(false)
+      setSelectedReservation(null)
+      setIsDialogOpen(false)
+
+      // Refresh reservations
+      const { data: user } = await supabase.auth.getUser()
+      if (user.user) {
+        // Trigger refetch
+        window.location.reload()
+      }
+    } catch (error) {
+      console.error('Error cancelling reservation:', error)
+      toast({
+        title: "Error",
+        description: "Failed to cancel reservation",
+        variant: "destructive",
+      })
+    }
   }
 
   // Status badge component
   const StatusBadge = ({ status }: { status: string }) => {
     switch (status) {
-      case "active":
-        return (
-          <Badge className="bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-50">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5" />
-            Active
-          </Badge>
-        )
-      case "upcoming":
-      case "reserved":
+      case "RESERVED":
         return (
           <Badge className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-50">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5" />
             Reserved
           </Badge>
         )
-      case "past":
+      case "ACTIVE":
+        return (
+          <Badge className="bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-50">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5" />
+            Active
+          </Badge>
+        )
+      case "COMPLETED":
         return (
           <Badge variant="outline" className="text-slate-500 border-slate-200">
             Completed
+          </Badge>
+        )
+      case "CANCELLED":
+        return (
+          <Badge className="bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-50">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1.5" />
+            Cancelled
+          </Badge>
+        )
+      case "NO_SHOW":
+        return (
+          <Badge className="bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-50">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-500 mr-1.5" />
+            No Show
           </Badge>
         )
       default:
@@ -317,7 +364,7 @@ export default function ReservationsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="bg-slate-100/50 border border-slate-200 p-1">
           <TabsTrigger
-            value="active"
+            value="ACTIVE"
             className="data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-2 text-sm font-medium"
           >
             Active
@@ -326,10 +373,10 @@ export default function ReservationsPage() {
             </span>
           </TabsTrigger>
           <TabsTrigger
-            value="upcoming"
+            value="RESERVED"
             className="data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-2 text-sm font-medium"
           >
-            Upcoming
+            Reserved
             <span className="ml-2 bg-emerald-100 text-emerald-700 text-xs rounded-full px-2 py-0.5 min-w-[20px] flex items-center justify-center">
               {counts.upcoming}
             </span>
@@ -430,12 +477,12 @@ export default function ReservationsPage() {
                           >
                             View Details
                           </Button>
-                          {reservation.status !== "past" && (
+                          {reservation.status !== "COMPLETED" && reservation.status !== "CANCELLED" && reservation.status !== "NO_SHOW" && (
                             <Button
                               variant="ghost"
                               size="sm"
                               className="text-rose-500 hover:text-rose-600 hover:bg-rose-50"
-                              onClick={() => handleCancel(reservation.id)}
+                              onClick={() => handleCancel(reservation)}
                             >
                               Cancel
                             </Button>
@@ -492,6 +539,33 @@ export default function ReservationsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Cancel Confirmation Dialog */}
+      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <DialogContent className="rounded-xl max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cancel Reservation?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel your reservation for Seat {selectedReservation?.seatName} on {selectedReservation?.date}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCancelDialogOpen(false)}
+              className="rounded-lg"
+            >
+              Keep Reservation
+            </Button>
+            <Button
+              onClick={confirmCancel}
+              className="rounded-lg bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              Cancel Reservation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -535,7 +609,7 @@ function ReservationDetailModal({
       </div>
 
       {/* Check-in Timer */}
-      {reservation.status === "upcoming" && reservation.checkInDeadline && (
+      {reservation.status === "RESERVED" && reservation.checkInDeadline && (
         <div className="mx-6 my-4">
           <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 text-center">
             <div className="text-4xl font-bold text-amber-600 tabular-nums">
@@ -624,25 +698,36 @@ function ReservationDetailModal({
 // Status Badge Component
 function StatusBadge({ status }: { status: string }) {
   switch (status) {
-    case "active":
+    case "ACTIVE":
       return (
         <Badge className="bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-50">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5" />
           Active
         </Badge>
       )
-    case "upcoming":
-    case "reserved":
+    case "RESERVED":
       return (
         <Badge className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-50">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5" />
           Reserved
         </Badge>
       )
-    case "past":
+    case "COMPLETED":
       return (
         <Badge variant="outline" className="text-slate-500 border-slate-200">
           Completed
+        </Badge>
+      )
+    case "CANCELLED":
+      return (
+        <Badge variant="outline" className="text-amber-600 border-amber-200">
+          Cancelled
+        </Badge>
+      )
+    case "NO_SHOW":
+      return (
+        <Badge variant="destructive" className="bg-rose-50 text-rose-600 border-rose-200">
+          No Show
         </Badge>
       )
     default:

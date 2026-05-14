@@ -12,6 +12,7 @@ import {
   XCircle,
   Eye,
   CalendarX,
+  Trash2,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -93,6 +94,8 @@ export default function ReservationsPage() {
   // Dialog state
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false)
+  const [viewDialogOpen, setViewDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
 
   const fetchReservations = useCallback(async () => {
@@ -297,6 +300,37 @@ export default function ReservationsPage() {
     }
   }
 
+  const handleDelete = async () => {
+    if (!selectedReservation) return
+
+    try {
+      const { error } = await supabase
+        .from("reservations")
+        .delete()
+        .eq("id", selectedReservation.id)
+
+      if (error) throw error
+
+      toast({
+        title: "Reservation Deleted",
+        description: `Deleted reservation for ${selectedReservation.user.matricNumber}`,
+        className: "bg-[#10B981] text-white border-none",
+      })
+
+      fetchReservations()
+    } catch (error) {
+      console.error("Error deleting reservation:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete reservation",
+        variant: "destructive",
+      })
+    } finally {
+      setDeleteDialogOpen(false)
+      setSelectedReservation(null)
+    }
+  }
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleDateString("en-US", {
@@ -412,7 +446,7 @@ export default function ReservationsPage() {
         ) : (
           <>
             {/* Table Header - Fixed */}
-            <div className="grid grid-cols-[2fr_1.5fr_1.5fr_1fr_1.5fr] gap-4 px-6 py-3 bg-slate-50 border-b border-slate-200 shrink-0">
+            <div className="grid grid-cols-[2fr_1.5fr_1.5fr_1fr_1fr_1.5fr] gap-4 px-6 py-3 bg-slate-50 border-b border-slate-200 shrink-0">
               <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
                 User
               </div>
@@ -424,6 +458,9 @@ export default function ReservationsPage() {
               </div>
               <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
                 Status
+              </div>
+              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
+                Created At
               </div>
               <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider text-right">
                 Actions
@@ -438,7 +475,7 @@ export default function ReservationsPage() {
               {reservations.map((reservation) => (
                 <div
                   key={reservation.id}
-                  className="grid grid-cols-[2fr_1.5fr_1.5fr_1fr_1.5fr] gap-4 px-6 py-4 items-center hover:bg-slate-50 transition-colors"
+                  className="grid grid-cols-[2fr_1.5fr_1.5fr_1fr_1fr_1.5fr] gap-4 px-6 py-4 items-center hover:bg-slate-50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-[#10B981] to-[#059669] rounded-full flex items-center justify-center text-white font-semibold text-sm">
@@ -480,7 +517,15 @@ export default function ReservationsPage() {
                       {statusConfig[reservation.status]?.label || statusConfig.UNKNOWN.label}
                     </Badge>
                   </div>
-                  <div className="text-right">
+                  <div>
+                    <p className="text-xs text-slate-600">
+                      {reservation.createdAt ? new Date(reservation.createdAt).toLocaleDateString() : 'N/A'}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {reservation.createdAt ? new Date(reservation.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                    </p>
+                  </div>
+                  <div className="text-right flex items-center justify-end gap-2">
                     {reservation.status === "RESERVED" && (
                       <Button
                         variant="outline"
@@ -507,24 +552,28 @@ export default function ReservationsPage() {
                         Force Release
                       </Button>
                     )}
-                    {reservation.status === "COMPLETED" && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="rounded-lg text-slate-600 hover:text-slate-900"
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        View Details
-                      </Button>
-                    )}
-                    {(reservation.status === "NO_SHOW" ||
-                      reservation.status === "CANCELLED") && (
-                      <span className="text-xs text-slate-400">
-                        {reservation.status === "NO_SHOW"
-                          ? "Missed"
-                          : "Cancelled"}
-                      </span>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedReservation(reservation)
+                        setViewDialogOpen(true)
+                      }}
+                      className="rounded-lg text-slate-600 hover:text-slate-900"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedReservation(reservation)
+                        setDeleteDialogOpen(true)
+                      }}
+                      className="rounded-lg text-rose-600 hover:text-rose-900"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -593,6 +642,77 @@ export default function ReservationsPage() {
               className="rounded-lg bg-amber-600 hover:bg-amber-700"
             >
               Force Release
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* View Details Dialog */}
+      <AlertDialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <AlertDialogContent className="rounded-xl max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reservation Details</AlertDialogTitle>
+          </AlertDialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <p className="text-sm text-slate-500">Student</p>
+              <p className="font-semibold text-slate-900">{selectedReservation?.user.matricNumber}</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-slate-500">Seat</p>
+              <p className="font-semibold text-slate-900">{selectedReservation?.seat.seatNumber}</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-slate-500">Zone</p>
+              <p className="font-semibold text-slate-900">{selectedReservation?.seat.zone.name}</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-slate-500">Time</p>
+              <p className="font-semibold text-slate-900">
+                {selectedReservation ? new Date(selectedReservation.startTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : ''} - {selectedReservation ? new Date(selectedReservation.endTime).toLocaleTimeString([], { timeStyle: 'short' }) : ''}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-slate-500">Status</p>
+              <Badge
+                className={cn(
+                  "rounded-full px-3 py-1 text-xs font-medium",
+                  statusConfig[selectedReservation?.status || 'UNKNOWN']?.color || statusConfig.UNKNOWN.color
+                )}
+              >
+                {statusConfig[selectedReservation?.status || 'UNKNOWN']?.label || statusConfig.UNKNOWN.label}
+              </Badge>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogAction className="rounded-lg">
+              Close
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Reservation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the reservation for student{" "}
+              <strong>{selectedReservation?.user.matricNumber}</strong> at Seat{" "}
+              <strong>{selectedReservation?.seat.seatNumber}</strong>. This
+              action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-lg">
+              Keep Reservation
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="rounded-lg bg-rose-600 hover:bg-rose-700"
+            >
+              Delete Reservation
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
