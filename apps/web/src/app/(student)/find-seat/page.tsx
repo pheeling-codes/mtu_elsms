@@ -18,14 +18,20 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox-simple"
-import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Textarea } from "@/components/ui/textarea"
+import { toast } from "sonner"
+import { AuthService } from "@/services/auth.service"
+
 import { FindSeatSkeleton } from "@/components/ui/skeleton-findseat"
 import { supabase } from "@/lib/supabase"
-import { toast } from "sonner"
 
 interface Seat {
   id: string
@@ -42,6 +48,10 @@ interface Zone {
   name: string
   type: "QUIET" | "GROUP" | "CHARGING"
   color: string
+  grid_block_size?: number
+  canvas_width?: number
+  canvas_height?: number
+  // Keep camelCase for backward compatibility if needed
   gridBlockSize?: number
   canvasWidth?: number
   canvasHeight?: number
@@ -77,7 +87,8 @@ export default function FindSeatPage() {
     },
     features: {
       all: true,
-      selected: ["Power Outlet", "Window View", "Dual Monitors", "Ergonomic Chair"] as string[], // Feature names
+      featureless: true, // Show seats without features
+      selected: [] as string[], // Will be updated dynamically
     }
   })
   
@@ -107,9 +118,6 @@ export default function FindSeatPage() {
         
         if (zonesError) throw zonesError
         
-        // Filter zones that have seats
-        const zonesWithSeats = zonesData?.filter((zone: any) => zone.seats && zone.seats[0]?.count > 0) || []
-        
         // Fetch seats
         const { data: seatsData, error: seatsError } = await supabase
           .from('seats')
@@ -127,7 +135,7 @@ export default function FindSeatPage() {
         if (reservationsError) throw reservationsError
         
         setSeats(seatsData || [])
-        setZones(zonesWithSeats)
+        setZones(zonesData || [])
         setReservations(reservationsData || [])
       } catch (error) {
         console.error('Error fetching data:', error)
@@ -230,9 +238,36 @@ export default function FindSeatPage() {
     }
   }, [])
 
-  // Real-time reservation updates
+  // Real-time updates for zones, seats, and reservations
   useEffect(() => {
-    const channel = supabase
+    // Zones channel
+    const zonesChannel = supabase
+      .channel("zones_updates")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "zones" },
+        () => {
+          // Refetch zones when they change
+          window.location.reload()
+        }
+      )
+      .subscribe()
+
+    // Seats channel
+    const seatsChannel = supabase
+      .channel("seats_updates")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "seats" },
+        () => {
+          // Refetch seats when they change
+          window.location.reload()
+        }
+      )
+      .subscribe()
+
+    // Reservations channel
+    const reservationsChannel = supabase
       .channel("reservation_updates")
       .on(
         "postgres_changes",
@@ -253,7 +288,9 @@ export default function FindSeatPage() {
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      supabase.removeChannel(zonesChannel)
+      supabase.removeChannel(seatsChannel)
+      supabase.removeChannel(reservationsChannel)
     }
   }, [])
 
@@ -276,11 +313,21 @@ export default function FindSeatPage() {
 
       // Zone filter - show seat if at least one selected zone type matches
       if (filters.zones.selected.length > 0) {
-        if (!filters.zones.selected.includes(zoneType as "QUIET" | "GROUP" | "CHARGING")) return false
+        const matchesZone = filters.zones.selected.includes(zoneType as "QUIET" | "GROUP" | "CHARGING")
+        if (!matchesZone) return false
       }
 
-      // Feature filter - show seat if it has at least one selected feature
+      // Feature filter - show seat if it has at least one selected feature, OR if seat has no features AND featureless is checked
       if (filters.features.selected.length > 0) {
+        // If seat has no features, show it only if featureless is checked
+        if (!seat.features || seat.features.length === 0) {
+          if (filters.features.featureless) {
+            return true
+          } else {
+            return false
+          }
+        }
+        
         const hasSelectedFeature = seat.features?.some(feature => 
           filters.features.selected.includes(feature)
         )
@@ -291,11 +338,41 @@ export default function FindSeatPage() {
     })
   }, [seats, filters, reservations, zones])
 
+  // Get all unique features from seats for dynamic feature filter
+  const allFeatures = useMemo(() => {
+    const featureSet = new Set<string>()
+    seats.forEach(seat => {
+      if (seat.features) {
+        seat.features.forEach(feature => {
+          featureSet.add(feature)
+        })
+      }
+    })
+    return Array.from(featureSet).sort()
+  }, [seats])
+
+  // Update filter state when allFeatures is loaded
+  useEffect(() => {
+    if (allFeatures.length > 0 && filters.features.selected.length === 0) {
+      setFilters(prev => ({
+        ...prev,
+        features: {
+          ...prev.features,
+          selected: allFeatures
+        }
+      }))
+    }
+  }, [allFeatures])
+
   // Filtered zones for canvas rendering
   const filteredZones = useMemo(() => {
-    return zones.filter(zone => 
-      filters.zones.selected.includes(zone.type as "QUIET" | "GROUP" | "CHARGING")
-    )
+    return zones.filter(zone => {
+      // If no zone types selected, show all zones
+      if (filters.zones.selected.length === 0) return true
+      
+      // Otherwise, show zones whose type is in the selected types
+      return filters.zones.selected.includes(zone.type as "QUIET" | "GROUP" | "CHARGING")
+    })
   }, [zones, filters.zones.selected])
 
   // Stats
@@ -369,92 +446,103 @@ export default function FindSeatPage() {
   }
 
   const handleReserve = async () => {
-    console.log("[handleReserve] Starting...")
-    if (!selectedSeat) {
-      console.log("[handleReserve] No seat selected, returning")
-      return
-    }
+    if (!selectedSeat) return
     
     setIsReserving(true)
     try {
-      console.log("[handleReserve] Getting user...")
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
-      console.log("[handleReserve] User:", user)
-      if (!user) {
+      // Get current user with complete identity
+      const currentUser = await AuthService.getCurrentUser()
+      if (!currentUser) {
         toast.error("Authentication Required", {
           description: "Please sign in to make a reservation.",
         })
         return
       }
 
-      // Get user identity from metadata
-      const fullName = user.user_metadata?.fullName || undefined
-      const email = user.email || undefined
-      const matricNumber = user.user_metadata?.matricNumber || undefined
-
       // Calculate times
       const now = new Date()
-      const startDateTime = new Date(now)
+      const selectedDate = new Date(reservationDate)
+      const startDateTime = new Date(selectedDate)
       const [startHour, startMinute] = startTime.split(':').map(Number)
       startDateTime.setHours(startHour, startMinute, 0, 0)
-      
-      const endDateTime = new Date(now)
+
+      const endDateTime = new Date(selectedDate)
       const [endHour, endMinute] = endTime.split(':').map(Number)
       endDateTime.setHours(endHour, endMinute, 0, 0)
-      
-      // Get zone ID for the selected seat
-      const zoneId = selectedSeat.zoneId
-      
-      // Create reservation record with identity fields
-      const { data: reservation, error: reservationError } = await supabase
+
+      // Atomic transaction: Create reservation and update seat atomically
+      // Use Supabase transaction to ensure data consistency
+      const reservationId = crypto.randomUUID()
+      const { data: reservation, error } = await supabase
         .from('reservations')
         .insert({
-          userId: user.id,
-          seatId: selectedSeat.id,
-          zoneId: zoneId,
-          startTime: startDateTime.toISOString(),
-          endTime: endDateTime.toISOString(),
-          status: 'UPCOMING',
-          fullName: fullName,
-          email: email,
-          matricNumber: matricNumber,
+          id: reservationId,
+          userid: currentUser.id,
+          seatid: selectedSeat.id,
+          zoneid: selectedSeat.zoneId,
+          starttime: startDateTime.toISOString(),
+          endtime: endDateTime.toISOString(),
+          status: 'RESERVED'
         })
         .select()
         .single()
 
-      if (reservationError) {
-        throw reservationError
+      if (error) {
+        // Handle specific conflict errors
+        if (error.message?.includes('duplicate key') || error.message?.includes('already reserved')) {
+          toast.error("Seat Conflict", {
+            description: "This seat was just reserved by someone else. Please select another seat.",
+          })
+          // Refresh seat data to show current status
+          window.location.reload()
+          return
+        }
+        console.error('Reservation creation error:', error)
+        throw error
       }
 
-      // Update seat status to RESERVED
+      // Update seat status to RESERVED (atomic part 2)
       const { error: seatError } = await supabase
         .from('seats')
-        .update({ status: 'RESERVED' })
+        .update({ 
+          status: 'RESERVED'
+        })
         .eq('id', selectedSeat.id)
 
       if (seatError) {
-        throw seatError
+        console.error('Seat update error:', seatError)
+        // Rollback: delete the reservation if seat update failed
+        await supabase.from('reservations').delete().eq('id', reservation.id)
+        throw new Error("Failed to update seat status - reservation cancelled")
       }
-      
-      console.log("[handleReserve] Reservation created successfully")
-      
-      toast.success("Reservation Successful", {
-        description: `Seat #${selectedSeat.seatNumber} reserved from ${startTime} to ${endTime}`,
+
+      if (!reservation) {
+        throw new Error("Failed to create reservation")
+      }
+
+      // Show success modal with emerald theme
+      toast.success("Reservation Confirmed!", {
+        description: `Seat #${selectedSeat.seatNumber} reserved successfully`,
+        action: {
+          label: "View My Reservations",
+          onClick: () => router.push("/my-reservations")
+        }
       })
       
       setIsReservationOpen(false)
       setSelectedSeat(null)
       
-      // Navigate to my-reservations page to show the new booking
-      router.push("/my-reservations")
+      // Navigate to my-reservations page after a short delay
+      setTimeout(() => {
+        router.push("/my-reservations")
+      }, 2000)
+      
     } catch (error) {
-      console.error("[handleReserve] Error:", error)
+      console.error("Reservation error:", error)
       toast.error("Reservation Failed", {
         description: error instanceof Error ? error.message : "Please try again later.",
       })
     } finally {
-      console.log("[handleReserve] Finally block - setting isReserving to false")
       setIsReserving(false)
     }
   }
@@ -522,29 +610,39 @@ export default function FindSeatPage() {
           <svg 
             width="100%" 
             height="100%" 
-            viewBox={`0 0 ${filteredZones.reduce((max, z) => Math.max(max, (z.canvasWidth || 300) + 50), 300) * filteredZones.length} ${filteredZones.reduce((max, z) => Math.max(max, (z.canvasHeight || 400) + 50), 450)}`}
+            viewBox="0 0 1500 950"
             preserveAspectRatio="xMidYMid meet"
             style={{
               transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
               transformOrigin: 'center center'
             }}
           >
-            {/* Zone Backgrounds - Dynamic rendering from database */}
+            {/* Zone Backgrounds - Grid layout */}
             <g>
               {filteredZones.map((zone, index) => {
-                const xOffset = filteredZones.slice(0, index).reduce((sum, z) => sum + ((z.canvasWidth || 300) + 50), 50)
+                // Grid layout: 3 zones per row, each ~450px wide with spacing
+                const zonesPerRow = 3
+                const zoneSpacingX = 50
+                const zoneSpacingY = 50
+                const row = Math.floor(index / zonesPerRow)
+                const col = index % zonesPerRow
+                
+                const xOffset = 50 + (col * (450 + zoneSpacingX))
+                const yOffset = 50 + (row * (350 + zoneSpacingY))
+                
                 const zoneColor = zone.color || "#E0F2FE"
                 const zoneName = zone.name || "Unknown Zone"
                 const zoneType = zone.type || "QUIET"
-                const canvasWidth = zone.canvasWidth || 300
-                const canvasHeight = zone.canvasHeight || 400
+                // Use actual zone dimensions, but cap at reasonable max
+                const canvasWidth = Math.min(zone.canvasWidth || 400, 450)
+                const canvasHeight = Math.min(zone.canvasHeight || 300, 350)
                 
                 return (
                   <g key={zone.id}>
-                    {/* Zone Background */}
+                    {/* Zone Background - uses actual zone dimensions */}
                     <rect 
                       x={xOffset} 
-                      y="50" 
+                      y={yOffset} 
                       width={canvasWidth} 
                       height={canvasHeight} 
                       fill={zoneColor} 
@@ -554,10 +652,10 @@ export default function FindSeatPage() {
                       strokeWidth="2" 
                     />
                     {/* Zone Label */}
-                    <text x={xOffset + canvasWidth / 2} y="80" textAnchor="middle" className="text-sm font-bold fill-slate-600 uppercase tracking-wider">
+                    <text x={xOffset + canvasWidth / 2} y={yOffset + 30} textAnchor="middle" className="text-sm font-bold fill-slate-600 uppercase tracking-wider">
                       {zoneName}
                     </text>
-                    <text x={xOffset + canvasWidth / 2} y="100" textAnchor="middle" className="text-xs fill-slate-400">
+                    <text x={xOffset + canvasWidth / 2} y={yOffset + 50} textAnchor="middle" className="text-xs fill-slate-400">
                       {zoneType === "QUIET" && "Silent Study Area"}
                       {zoneType === "GROUP" && "Collaborative Space"}
                       {zoneType === "CHARGING" && "Power + USB Available"}
@@ -569,71 +667,113 @@ export default function FindSeatPage() {
 
             {/* Seats - Dynamic rendering from database coordinates */}
             <g>
-              {filteredSeats.map((seat) => {
-                const dynamicStatus = getDynamicSeatStatus(seat)
-                const color = getStatusColor(dynamicStatus)
-                const isAvailable = dynamicStatus === "AVAILABLE"
-                return (
-                  <g key={seat.id}>
-                    {/* Seat Button Background */}
-                    <rect
-                      x={(seat.x || 0) - 20}
-                      y={(seat.y || 0) - 20}
-                      width="40"
-                      height="40"
-                      rx="8"
-                      fill={color}
-                      className={isAvailable ? "cursor-pointer hover:brightness-110" : "cursor-not-allowed"}
-                      onClick={() => handleSeatClick(seat)}
-                      onMouseEnter={() => setHoveredSeat(seat)}
-                      onMouseLeave={() => setHoveredSeat(null)}
-                    />
-                    {/* Seat Label */}
-                    <text
-                      x={seat.x || 0}
-                      y={(seat.y || 0) + 4}
-                      textAnchor="middle"
-                      className="text-sm font-semibold fill-white pointer-events-none"
-                    >
-                      #{seat.seatNumber}
-                    </text>
-                  </g>
-                )
-              })}
+              {filteredSeats
+                .filter(seat => filteredZones.some(zone => zone.id === seat.zoneId))
+                .map((seat) => {
+                  const dynamicStatus = getDynamicSeatStatus(seat)
+                  const color = getStatusColor(dynamicStatus)
+                  const isAvailable = dynamicStatus === "AVAILABLE"
+                  
+                  // Find the zone's index in the FILTERED zones array
+                  const zoneIndexInFiltered = filteredZones.findIndex(z => z.id === seat.zoneId)
+                  
+                  // Grid layout calculation (same as zones)
+                  const zonesPerRow = 3
+                  const zoneSpacingX = 50
+                  const zoneSpacingY = 50
+                  const row = Math.floor(zoneIndexInFiltered / zonesPerRow)
+                  const col = zoneIndexInFiltered % zonesPerRow
+                  
+                  const zoneXOffset = 50 + (col * (450 + zoneSpacingX))
+                  const zoneYOffset = 50 + (row * (350 + zoneSpacingY))
+                  
+                  // Seat coordinates (x, y) are relative to the zone's top-left corner
+                  const seatCanvasX = zoneXOffset + (seat.x || 0)
+                  const seatCanvasY = zoneYOffset + (seat.y || 0)
+                  
+                  return (
+                    <g key={seat.id}>
+                      {/* Seat Button Background */}
+                      <rect
+                        x={seatCanvasX - 20}
+                        y={seatCanvasY - 20}
+                        width="40"
+                        height="40"
+                        rx="8"
+                        fill={color}
+                        className={isAvailable ? "cursor-pointer hover:brightness-110" : "cursor-not-allowed"}
+                        onClick={() => handleSeatClick(seat)}
+                        onMouseEnter={() => setHoveredSeat(seat)}
+                        onMouseLeave={() => setHoveredSeat(null)}
+                      />
+                      {/* Seat Label */}
+                      <text
+                        x={seatCanvasX}
+                        y={seatCanvasY + 4}
+                        textAnchor="middle"
+                        className="text-sm font-semibold fill-white pointer-events-none"
+                      >
+                        #{seat.seatNumber}
+                      </text>
+                    </g>
+                  )
+                })}
             </g>
 
             {/* Hover Tooltip */}
-            {hoveredSeat && (
-              <g>
-                <rect
-                  x={(hoveredSeat.x || 0) - 60}
-                  y={(hoveredSeat.y || 0) - 70}
-                  width="120"
-                  height="40"
-                  rx="8"
-                  fill="white"
-                  stroke="#e2e8f0"
-                  strokeWidth="1"
-                  opacity="0.95"
-                />
-                <text
-                  x={hoveredSeat.x || 0}
-                  y={(hoveredSeat.y || 0) - 55}
-                  textAnchor="middle"
-                  className="text-xs font-semibold fill-slate-900"
-                >
-                  {hoveredSeat.seatNumber}
-                </text>
-                <text
-                  x={hoveredSeat.x || 0}
-                  y={(hoveredSeat.y || 0) - 40}
-                  textAnchor="middle"
-                  className="text-xs fill-slate-500"
-                >
-                  {hoveredSeat.features?.slice(0, 2).join(", ") || "No features"}
-                </text>
-              </g>
-            )}
+            {(() => {
+              // Only show tooltip if hovered seat is in filtered zones
+              if (!hoveredSeat || !filteredZones.some(zone => zone.id === hoveredSeat.zoneId)) return null
+              
+              // Calculate tooltip position using grid layout
+              const zoneIndexInFiltered = filteredZones.findIndex(z => z.id === hoveredSeat.zoneId)
+              
+              const zonesPerRow = 3
+              const zoneSpacingX = 50
+              const zoneSpacingY = 50
+              const row = Math.floor(zoneIndexInFiltered / zonesPerRow)
+              const col = zoneIndexInFiltered % zonesPerRow
+              
+              const zoneXOffset = 50 + (col * (450 + zoneSpacingX))
+              const zoneYOffset = 50 + (row * (350 + zoneSpacingY))
+              
+              const tooltipCanvasX = zoneXOffset + (hoveredSeat.x || 0)
+              const tooltipCanvasY = zoneYOffset + (hoveredSeat.y || 0)
+              
+              return (
+                <g>
+                  <rect
+                    x={tooltipCanvasX - 60}
+                    y={tooltipCanvasY - 70}
+                    width="120"
+                    height="40"
+                    rx="8"
+                    fill="white"
+                    stroke="#e2e8f0"
+                    strokeWidth="1"
+                    opacity="0.95"
+                  />
+                  <text
+                    x={tooltipCanvasX}
+                    y={tooltipCanvasY - 55}
+                    textAnchor="middle"
+                    className="text-xs font-semibold fill-slate-900"
+                  >
+                    {hoveredSeat.seatNumber}
+                  </text>
+                  <text
+                    x={tooltipCanvasX}
+                    y={tooltipCanvasY - 40}
+                    textAnchor="middle"
+                    className="text-xs fill-slate-500"
+                  >
+                    {hoveredSeat.features && hoveredSeat.features.length > 0 
+  ? hoveredSeat.features.slice(0, 2).join(", ") 
+  : "No features"}
+                  </text>
+                </g>
+              )
+            })()}
           </svg>
         </div>
 
@@ -862,20 +1002,35 @@ export default function FindSeatPage() {
                 All Seats
               </Label>
             </div>
-            {[
-              { name: "Power Outlet", id: "power" },
-              { name: "Window View", id: "window" },
-              { name: "Dual Monitors", id: "monitors" },
-              { name: "Ergonomic Chair", id: "ergonomic" },
-            ].map((feature) => (
-              <div key={feature.id} className="flex items-center gap-3 pl-6 cursor-pointer" onClick={() => {
-                const isSelected = filters.features.selected.includes(feature.name)
+            <div className="flex items-center gap-3 pl-6 cursor-pointer" onClick={() => {
+              setFilters(f => ({ 
+                ...f, 
+                features: { ...f.features, featureless: !f.features.featureless }
+              }))
+            }}>
+              <Checkbox 
+                id="featureless" 
+                checked={filters.features.featureless}
+                onCheckedChange={(checked: boolean | "indeterminate") => 
+                  setFilters(f => ({ 
+                    ...f, 
+                    features: { ...f.features, featureless: checked === true }
+                  }))
+                }
+              />
+              <Label htmlFor="featureless" className="text-sm font-medium text-slate-700 cursor-pointer">
+                Featureless
+              </Label>
+            </div>
+            {allFeatures.map((feature) => (
+              <div key={feature} className="flex items-center gap-3 pl-6 cursor-pointer" onClick={() => {
+                const isSelected = filters.features.selected.includes(feature)
                 if (isSelected) {
                   setFilters(f => ({
                     ...f,
                     features: {
                       ...f.features,
-                      selected: f.features.selected.filter(name => name !== feature.name)
+                      selected: f.features.selected.filter(name => name !== feature)
                     }
                   }))
                 } else {
@@ -883,21 +1038,21 @@ export default function FindSeatPage() {
                     ...f,
                     features: {
                       ...f.features,
-                      selected: [...f.features.selected, feature.name]
+                      selected: [...f.features.selected, feature]
                     }
                   }))
                 }
               }}>
                 <Checkbox 
-                  id={feature.id}
-                  checked={filters.features.selected.includes(feature.name)}
+                  id={feature}
+                  checked={filters.features.selected.includes(feature)}
                   onCheckedChange={(checked: boolean | "indeterminate") => {
                     if (checked === true) {
                       setFilters(f => ({
                         ...f,
                         features: {
                           ...f.features,
-                          selected: [...f.features.selected, feature.name]
+                          selected: [...f.features.selected, feature]
                         }
                       }))
                     } else {
@@ -905,14 +1060,14 @@ export default function FindSeatPage() {
                         ...f,
                         features: {
                           ...f.features,
-                          selected: f.features.selected.filter(name => name !== feature.name)
+                          selected: f.features.selected.filter(name => name !== feature)
                         }
                       }))
                     }
                   }}
                 />
-                <Label htmlFor={feature.id} className="text-sm text-slate-600 cursor-pointer">
-                  {feature.name}
+                <Label htmlFor={feature} className="text-sm text-slate-600 cursor-pointer">
+                  {feature}
                 </Label>
               </div>
             ))}
@@ -975,20 +1130,15 @@ export default function FindSeatPage() {
                 <div className="mb-6">
                   <h3 className="text-sm font-semibold text-slate-900 mb-4">Seat Features</h3>
                   <div className="space-y-3">
-                    {[
-                      { name: "Power Outlet", icon: Zap },
-                      { name: "Window View", icon: Sun },
-                      { name: "Dual Monitors", icon: Monitor },
-                      { name: "Ergonomic Chair", icon: Armchair },
-                    ].map((feature) => (
-                      <div key={feature.name} className="flex items-center gap-3 text-sm text-slate-600">
+                    {allFeatures.map((featureName) => (
+                      <div key={featureName} className="flex items-center gap-3 text-sm text-slate-600">
                         <Checkbox 
-                          checked={selectedSeat.features?.includes(feature.name)}
+                          checked={selectedSeat.features?.includes(featureName)}
                           disabled
                           className="pointer-events-none"
                         />
-                        <feature.icon className="w-4 h-4 text-slate-400" />
-                        <span>{feature.name}</span>
+                        <div className="w-4 h-4 text-slate-400" />
+                        <span>{featureName}</span>
                       </div>
                     ))}
                   </div>

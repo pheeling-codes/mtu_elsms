@@ -3,6 +3,11 @@
 import { supabase } from "@/lib/supabase"
 import type { Role } from "@elsms/types"
 
+// Cache for user data to prevent duplicate session requests
+let currentUserCache: AuthUser | null = null
+let cacheTimestamp = 0
+const CACHE_DURATION = 5000 // 5 seconds
+
 // Helper to sync Supabase session from localStorage to cookies (for middleware detection)
 export function syncSessionToCookies(): boolean {
   if (typeof window === 'undefined') return false
@@ -228,6 +233,7 @@ export class AuthService {
   }
 
   static async signOut(): Promise<{ error?: string }> {
+    this.clearUserCache()
     const { error } = await supabase.auth.signOut()
     return { error: error?.message }
   }
@@ -247,11 +253,21 @@ export class AuthService {
   }
 
   static async getCurrentUser(): Promise<AuthUser | null> {
+    // Check cache first to prevent duplicate session requests
+    const now = Date.now()
+    if (currentUserCache && (now - cacheTimestamp) < CACHE_DURATION) {
+      return currentUserCache
+    }
+
     // getSession() triggers auto-refresh of expired tokens
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    
-    if (sessionError || !session?.user) return null
-    
+
+    if (sessionError || !session?.user) {
+      currentUserCache = null
+      cacheTimestamp = 0
+      return null
+    }
+
     const user = session.user
 
     try {
@@ -265,7 +281,7 @@ export class AuthService {
       if (error) {
         console.warn("AuthService: Database fetch failed, using auth data:", error.message)
         // Return basic user info even if DB query fails
-        return {
+        const basicUser = {
           id: user.id,
           email: user.email!,
           fullName: user.user_metadata?.fullName || undefined,
@@ -273,6 +289,9 @@ export class AuthService {
           avatarUrl: user.user_metadata?.avatar_url || undefined,
           role: (user.user_metadata?.role as Role) || "STUDENT",
         }
+        currentUserCache = basicUser
+        cacheTimestamp = now
+        return basicUser
       }
 
       // Handle both old (camelCase) and new (snake_case) schemas
@@ -280,7 +299,7 @@ export class AuthService {
       const fullName = userRecord?.full_name || userRecord?.fullName || userRecord?.name || undefined
       const matricNumber = userRecord?.matric_number || userRecord?.matricNumber || undefined
 
-      return {
+      const fullUser = {
         id: user.id,
         fullName: fullName || user.user_metadata?.fullName || undefined,
         email: user.email!,
@@ -288,10 +307,14 @@ export class AuthService {
         matricNumber: matricNumber || user.user_metadata?.matricNumber || undefined,
         avatarUrl: avatarUrl || user.user_metadata?.avatar_url || undefined,
       }
+
+      currentUserCache = fullUser
+      cacheTimestamp = now
+      return fullUser
     } catch (error) {
       console.error("getCurrentUser error:", error)
       // Return basic user info even if DB query fails
-      return {
+      const basicUser = {
         id: user.id,
         email: user.email!,
         fullName: user.user_metadata?.fullName || undefined,
@@ -299,12 +322,23 @@ export class AuthService {
         avatarUrl: user.user_metadata?.avatar_url || undefined,
         role: "STUDENT" as Role,
       }
+      currentUserCache = basicUser
+      cacheTimestamp = now
+      return basicUser
     }
+  }
+
+  static clearUserCache() {
+    currentUserCache = null
+    cacheTimestamp = 0
   }
 
   static onAuthStateChange(callback: (user: AuthUser | null) => void) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
+      // Clear cache on auth state changes
+      this.clearUserCache()
+
       if (session?.user) {
         const user = await this.getCurrentUser()
         callback(user)

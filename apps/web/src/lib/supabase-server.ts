@@ -1,0 +1,54 @@
+import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
+
+export function createServerComponentClient() {
+  const cookieStore = cookies()
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch (error) {
+            // The `deleteAll()` method is just for developers, and never happens in production
+            console.error('Error setting cookies:', error)
+          }
+        },
+      },
+    }
+  )
+}
+
+export async function createServerActionClient() {
+  const cookieStore = cookies()
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch (error) {
+            // The `deleteAll()` method is just for developers, and never happens in production
+            console.error('Error setting cookies:', error)
+          }
+        },
+      },
+    }
+  )
+}

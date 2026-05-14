@@ -15,11 +15,25 @@ import {
   ChevronLeft,
   Maximize2,
 } from "lucide-react"
+// Date formatting utilities
+const formatDate = (date: Date) => {
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  })
+}
+
+const formatTime = (date: Date) => {
+  return date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ReservationsSkeleton } from "@/components/ui/skeleton-reservations"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Dialog,
@@ -29,7 +43,7 @@ import {
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
 import { supabase } from "@/lib/supabase"
-import { toast } from "sonner"
+import { useAuth } from "@/hooks/useAuth"
 
 interface Reservation {
   id: string
@@ -131,79 +145,85 @@ function FeatureIcon({ feature }: { feature: string }) {
 
 export default function ReservationsPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState("upcoming")
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
   const [reservations, setReservations] = useState<Reservation[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Fetch reservations from Supabase
+  // Fetch student's own reservations
   useEffect(() => {
-    const fetchReservations = async () => {
+    const fetchStudentReservations = async () => {
+      if (!user?.id) {
+        console.log('No user session found')
+        setIsLoading(false)
+        return
+      }
+
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
-          setIsLoading(false)
-          router.push('/auth/signin')
-          return
-        }
+        setIsLoading(true)
+        console.log('Fetching reservations for student:', user.id)
 
         const { data, error } = await supabase
           .from('reservations')
-          .select(`
-            id,
-            seatId,
-            startTime,
-            endTime,
-            status,
-            seat:seats!inner(id, seatNumber, zoneId, features)
-          `)
-          .eq('userId', user.id)
-          .order('startTime', { ascending: false })
+          .select('*')
+          .eq('userid', user.id)
+          .order('starttime', { ascending: false })
+          .limit(50)
 
-        if (error) throw error
+        if (error) {
+          console.error('Error fetching student reservations:', error)
+          throw error
+        }
 
-        // Fetch zones for lookup
-        const { data: zonesData } = await supabase.from('zones').select('id, name')
-        const zoneMap = new Map((zonesData || []).map((z: { id: string; name: string }) => [z.id, z.name]))
+        console.log('Student reservations fetched:', data?.length || 0)
+        console.log('Raw reservation data:', data)
 
-        // Transform data to match interface
-        const transformed = (data || []).map((r: any) => ({
-          id: r.id,
-          seatId: r.seatId,
-          seatName: `Seat #${r.seat?.seatNumber || 'Unknown'}`,
-          zone: zoneMap.get(r.seat?.zoneId) || 'Unknown',
-          date: new Date(r.startTime).toLocaleDateString('en-US', { 
-            weekday: 'long', 
-            month: 'short', 
-            day: 'numeric' 
-          }),
-          startTime: new Date(r.startTime).toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: false 
-          }),
-          endTime: new Date(r.endTime).toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: false 
-          }),
-          status: r.status.toLowerCase() as "active" | "upcoming" | "past" | "reserved",
-          features: r.seat?.features || [],
-          checkInDeadline: new Date(new Date(r.startTime).getTime() + 15 * 60000)
-        }))
+        // Transform the data to match our interface
+        const transformedReservations: Reservation[] = (data || []).map((item: any) => {
+          try {
+            const startTime = new Date(item.starttime)
+            const endTime = new Date(item.endtime)
+            const now = new Date()
 
-        setReservations(transformed)
+            let status: Reservation['status'] = 'upcoming'
+            if (item.status === 'ACTIVE') status = 'active'
+            else if (item.status === 'COMPLETED' || item.status === 'CANCELLED') status = 'past'
+            else if (startTime <= now && endTime > now) status = 'active'
+            else if (startTime > now) status = 'upcoming'
+            else status = 'past'
+
+            return {
+              id: item.id,
+              seatId: item.seatid,
+              seatName: `Seat ${item.seatid?.substring(0, 6) || 'Unknown'}`,
+              zone: 'Zone A', // Default zone since we're not doing joins
+              date: formatDate(new Date(item.starttime)),
+              startTime: formatTime(new Date(item.starttime)),
+              endTime: formatTime(new Date(item.endtime)),
+              status,
+              features: [], // Default empty features since we're not doing joins
+              checkInDeadline: status === 'upcoming' ? new Date(startTime.getTime() - 15 * 60 * 1000) : undefined
+            }
+          } catch (error) {
+            console.error('Error transforming reservation item:', item, error)
+            return null
+          }
+        }).filter((item: Reservation | null): item is Reservation => item !== null)
+
+        console.log('Transformed reservations:', transformedReservations)
+        setReservations(transformedReservations)
       } catch (error) {
-        console.error('Error fetching reservations:', error)
-        toast.error('Failed to load reservations')
+        console.error('Error in fetchStudentReservations:', error)
+        setReservations([])
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchReservations()
-  }, [])
+    fetchStudentReservations()
+  }, [user])
 
   // Count by status
   const counts = useMemo(() => {
@@ -216,7 +236,9 @@ export default function ReservationsPage() {
 
   // Filter reservations by active tab
   const filteredReservations = useMemo(() => {
-    return reservations.filter((r) => r.status === activeTab)
+    const filtered = reservations.filter((r) => r.status === activeTab)
+    console.log('Active tab:', activeTab, 'Filtered reservations:', filtered.length, 'Total reservations:', reservations.length)
+    return filtered
   }, [reservations, activeTab])
 
   // Handle view details
@@ -228,91 +250,14 @@ export default function ReservationsPage() {
   // Handle check in
   const handleCheckIn = async () => {
     // TODO: Implement Supabase mutation
+    console.log("Checking in...", selectedReservation?.id)
     setIsDialogOpen(false)
   }
 
-  // Handle cancel with No-Show logic
+  // Handle cancel
   const handleCancel = async (reservationId: string) => {
-    try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        toast.error("Authentication Required", {
-          description: "Please sign in to cancel reservations.",
-        })
-        return
-      }
-
-      // Get the reservation details to find the seat
-      const { data: reservation, error: fetchError } = await supabase
-        .from('reservations')
-        .select('seatId, status')
-        .eq('id', reservationId)
-        .single()
-
-      if (fetchError || !reservation) {
-        toast.error("Reservation Not Found", {
-          description: "Unable to find the reservation to cancel.",
-        })
-        return
-      }
-
-      // Update reservation status to CANCELLED
-      const { error: cancelError } = await supabase
-        .from('reservations')
-        .update({ status: 'CANCELLED' })
-        .eq('id', reservationId)
-
-      if (cancelError) {
-        throw cancelError
-      }
-
-      // Increment noShowCount in user profile (recorded as no-show)
-      const { error: profileError } = await supabase.rpc('increment_noshow_count', {
-        user_id: user.id
-      })
-
-      if (profileError) {
-        // Fallback: try to update directly if RPC doesn't exist
-        const { data: profile } = await supabase
-          .from('users')
-          .select('noShowCount')
-          .eq('id', user.id)
-          .single()
-        
-        await supabase
-          .from('users')
-          .update({ noShowCount: (profile?.noShowCount || 0) + 1 })
-          .eq('id', user.id)
-      }
-
-      // Set seat back to AVAILABLE
-      const { error: seatError } = await supabase
-        .from('seats')
-        .update({ status: 'AVAILABLE' })
-        .eq('id', reservation.seatId)
-
-      if (seatError) {
-        throw seatError
-      }
-
-      toast.success("Reservation Cancelled", {
-        description: "Your reservation has been cancelled. This has been recorded as a no-show.",
-      })
-
-      setIsDialogOpen(false)
-      
-      // Refresh the page to show updated data
-      window.location.reload()
-    } catch (error) {
-      toast.error("Cancellation Failed", {
-        description: error instanceof Error ? error.message : "Please try again later.",
-      })
-    }
-  }
-
-  if (isLoading) {
-    return <ReservationsSkeleton />
+    // TODO: Implement Supabase mutation
+    console.log("Cancelling...", reservationId)
   }
 
   // Status badge component
@@ -395,75 +340,104 @@ export default function ReservationsPage() {
         <TabsContent value={activeTab} className="mt-6">
           {filteredReservations.length > 0 ? (
             <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-              {/* Table Header */}
-              <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-slate-50/50 border-b border-slate-200 text-xs font-medium text-slate-500 uppercase tracking-wider">
-                <div className="col-span-4">Seat Information</div>
-                <div className="col-span-3 text-center">Schedule</div>
-                <div className="col-span-2 text-center">Status</div>
-                <div className="col-span-3 text-right">Actions</div>
-              </div>
-
-              {/* Table Rows */}
-              <div className="divide-y divide-slate-100">
-                {filteredReservations.map((reservation) => (
-                  <div
-                    key={reservation.id}
-                    className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-slate-50/50 transition-colors"
-                  >
-                    {/* Seat Info */}
-                    <div className="col-span-4 flex items-center gap-3">
-                      <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Armchair className="w-5 h-5 text-emerald-500" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-slate-900">Seat {reservation.seatName}</h3>
-                        <div className="flex items-center gap-2 text-xs text-slate-500">
-                          <MapPin className="w-3 h-3" />
-                          <span>{reservation.zone}</span>
+              {isLoading ? (
+                <div className="p-6 space-y-4">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="grid grid-cols-12 gap-4 px-6 py-4 items-center">
+                      <div className="col-span-4 flex items-center gap-3">
+                        <div className="w-10 h-10 bg-slate-100 rounded-lg animate-pulse" />
+                        <div className="space-y-2">
+                          <div className="w-24 h-4 bg-slate-100 rounded animate-pulse" />
+                          <div className="w-20 h-3 bg-slate-100 rounded animate-pulse" />
                         </div>
                       </div>
-                    </div>
-
-                    {/* Schedule */}
-                    <div className="col-span-3 text-center">
-                      <div className="flex items-center justify-center gap-1.5 text-sm font-medium text-slate-900">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                        {reservation.date}
+                      <div className="col-span-3 text-center space-y-2">
+                        <div className="w-28 h-4 bg-slate-100 rounded animate-pulse mx-auto" />
+                        <div className="w-24 h-3 bg-slate-100 rounded animate-pulse mx-auto" />
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {reservation.startTime} - {reservation.endTime}
-                      </p>
+                      <div className="col-span-2 text-center">
+                        <div className="w-20 h-6 bg-slate-100 rounded-full animate-pulse mx-auto" />
+                      </div>
+                      <div className="col-span-3 flex items-center justify-end gap-2">
+                        <div className="w-24 h-8 bg-slate-100 rounded animate-pulse" />
+                        <div className="w-16 h-8 bg-slate-100 rounded animate-pulse" />
+                      </div>
                     </div>
-
-                    {/* Status */}
-                    <div className="col-span-2 text-center">
-                      <StatusBadge status={reservation.status} />
-                    </div>
-
-                    {/* Actions */}
-                    <div className="col-span-3 flex items-center justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-slate-200 text-slate-700 hover:bg-slate-50"
-                        onClick={() => handleViewDetails(reservation)}
-                      >
-                        View Details
-                      </Button>
-                      {reservation.status !== "past" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-rose-500 hover:text-rose-600 hover:bg-rose-50"
-                          onClick={() => handleCancel(reservation.id)}
-                        >
-                          Cancel
-                        </Button>
-                      )}
-                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  {/* Table Header */}
+                  <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-slate-50/50 border-b border-slate-200 text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    <div className="col-span-4">Seat Information</div>
+                    <div className="col-span-3 text-center">Schedule</div>
+                    <div className="col-span-2 text-center">Status</div>
+                    <div className="col-span-3 text-right">Actions</div>
                   </div>
-                ))}
-              </div>
+
+                  {/* Table Rows */}
+                  <div className="divide-y divide-slate-100">
+                    {filteredReservations.map((reservation) => (
+                      <div
+                        key={reservation.id}
+                        className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-slate-50/50 transition-colors"
+                      >
+                        {/* Seat Info */}
+                        <div className="col-span-4 flex items-center gap-3">
+                          <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Armchair className="w-5 h-5 text-emerald-500" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-slate-900">Seat {reservation.seatName}</h3>
+                            <div className="flex items-center gap-2 text-xs text-slate-500">
+                              <MapPin className="w-3 h-3" />
+                              <span>{reservation.zone}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Schedule */}
+                        <div className="col-span-3 text-center">
+                          <div className="flex items-center justify-center gap-1.5 text-sm font-medium text-slate-900">
+                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                            {reservation.date}
+                          </div>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {reservation.startTime} - {reservation.endTime}
+                          </p>
+                        </div>
+
+                        {/* Status */}
+                        <div className="col-span-2 text-center">
+                          <StatusBadge status={reservation.status} />
+                        </div>
+
+                        {/* Actions */}
+                        <div className="col-span-3 flex items-center justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-slate-200 text-slate-700 hover:bg-slate-50"
+                            onClick={() => handleViewDetails(reservation)}
+                          >
+                            View Details
+                          </Button>
+                          {reservation.status !== "past" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+                              onClick={() => handleCancel(reservation.id)}
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <Card className="bg-slate-50 border-dashed border-slate-200">
@@ -474,7 +448,7 @@ export default function ReservationsPage() {
                 </h3>
                 <p className="text-slate-500 mb-4">
                   {activeTab === "past"
-                    ? "Your reservation history will appear here."
+                    ? "Your completed study sessions will appear here."
                     : "You haven't made any study plans yet. Find a seat to get started."}
                 </p>
                 {activeTab !== "past" && (
@@ -598,6 +572,22 @@ function ReservationDetailModal({
         <div className="flex justify-between items-center text-sm">
           <span className="text-slate-500">Duration</span>
           <span className="font-medium text-slate-900">{getDuration()}</span>
+        </div>
+      </div>
+
+      {/* Features */}
+      <div className="px-6 py-4">
+        <h3 className="font-medium text-slate-900 mb-3">Seat Features</h3>
+        <div className="flex flex-wrap gap-2">
+          {reservation.features.map((feature) => (
+            <div
+              key={feature}
+              className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2 text-sm text-slate-700"
+            >
+              <FeatureIcon feature={feature} />
+              <span>{feature}</span>
+            </div>
+          ))}
         </div>
       </div>
 

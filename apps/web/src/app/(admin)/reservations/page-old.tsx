@@ -1,9 +1,6 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-
-// Version busting to force component reload
-const ADMIN_VERSION = "v2.1"
 import {
   Calendar,
   MapPin,
@@ -15,27 +12,7 @@ import {
   XCircle,
   Eye,
   CalendarX,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react"
-// Date formatting utilities
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', {
-    month: '2-digit',
-    day: '2-digit',
-    year: '2-digit'
-  }).replace(/\//g, '/')
-}
-
-const formatTime = (dateString: string) => {
-  const date = new Date(dateString)
-  return date.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  })
-}
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -80,11 +57,10 @@ interface Reservation {
   seat: {
     id: string
     seatNumber: string
-    features: string[]
+    zoneId: string
     zone: {
       id: string
       name: string
-      themeColor?: string
     }
   }
 }
@@ -92,18 +68,10 @@ interface Reservation {
 interface Zone {
   id: string
   name: string
-  themeColor?: string
-}
-
-interface PaginationInfo {
-  currentPage: number
-  totalPages: number
-  totalCount: number
-  pageSize: number
 }
 
 const TABLE_HEIGHT = "calc(100vh - 280px)"
-const PAGE_SIZE = 20
+
 const statusConfig = {
   RESERVED: { label: "Reserved", variant: "secondary" as const, color: "bg-slate-100 text-slate-700" },
   ACTIVE: { label: "Active", variant: "default" as const, color: "bg-[#10B981] text-white" },
@@ -117,12 +85,7 @@ export default function ReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [zones, setZones] = useState<Zone[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [pagination, setPagination] = useState<PaginationInfo>({
-    currentPage: 1,
-    totalPages: 1,
-    totalCount: 0,
-    pageSize: PAGE_SIZE
-  })
+  const [totalCount, setTotalCount] = useState(0)
 
   // Filters
   const [dateFilter, setDateFilter] = useState("all")
@@ -137,127 +100,74 @@ export default function ReservationsPage() {
   // New reservation tracking for animations
   const [newReservationIds, setNewReservationIds] = useState<Set<string>>(new Set())
 
-  const fetchReservations = useCallback(async (page: number = 1) => {
-    console.log("=== ADMIN GLOBAL RESERVATIONS FETCH ===")
+  const fetchReservations = useCallback(async () => {
+    console.log("=== FINAL RESERVATIONS FETCH ===")
     setIsLoading(true)
     
     try {
-      console.log('Fetching admin reservations with filters:', { zoneFilter, statusFilter, dateFilter, page })
-      console.log('Admin version:', ADMIN_VERSION)
-
-      // Build simple query without joins to avoid relationship issues
-      // Explicitly select columns to prevent PostgREST from trying to resolve relationships
-      let query = supabase
-        .from('reservations')
-        .select('id, userid, seatid, zoneid, starttime, endtime, status, checkintime, checkouttime, createdat, updatedat', { count: 'exact' })
-        .order('starttime', { ascending: false })
-        .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
-
-      console.log('Query built with explicit lowercase columns')
-
-      // Apply filters
-      if (zoneFilter !== 'all') {
-        query = query.eq('seatid', zoneFilter)
-      }
-      if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter.toUpperCase())
-      }
-      if (dateFilter === 'today') {
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        query = query.gte('starttime', today.toISOString())
-          .lt('starttime', new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString())
-      } else if (dateFilter === 'yesterday') {
-        const yesterday = new Date()
-        yesterday.setDate(yesterday.getDate() - 1)
-        yesterday.setHours(0, 0, 0, 0)
-        query = query.gte('starttime', yesterday.toISOString())
-          .lt('starttime', new Date(yesterday.getTime() + 24 * 60 * 60 * 1000).toISOString())
-      } else if (dateFilter === 'week') {
-        const weekAgo = new Date()
-        weekAgo.setDate(weekAgo.getDate() - 7)
-        query = query.gte('starttime', weekAgo.toISOString())
-      } else if (dateFilter === 'month') {
-        const monthAgo = new Date()
-        monthAgo.setDate(monthAgo.getDate() - 30)
-        query = query.gte('starttime', monthAgo.toISOString())
-      }
-
-      const { data, error, count } = await query
-
-      console.log('Admin query result:', data?.length || 0, 'Total count:', count, 'Error:', error)
-      console.log('Raw admin reservation data:', data)
-      console.log('Query URL used:', (query as any).url || 'No URL available')
-
+      // Final simple query - absolutely NO joins
+      const { data: reservations, error } = await supabase
+        .from("reservations")
+        .select("id, userId, seatId, startTime, endTime, status, createdAt")
+        .order("createdAt", { ascending: false })
+        .limit(50)
+      
+      console.log("Final query result:", reservations?.length || 0, "Error:", error)
+      
       if (error) {
-        console.error('Admin fetch error:', error)
+        console.error("Final fetch error:", error)
         throw error
       }
-
-      if (!data || data.length === 0) {
-        console.log('No reservations found')
+      
+      if (!reservations || reservations.length === 0) {
+        console.log("No reservations found")
         setReservations([])
-        setPagination(prev => ({
-          ...prev,
-          totalCount: 0,
-          totalPages: 0,
-          currentPage: page
-        }))
+        setTotalCount(0)
         return
       }
       
-      console.log('SUCCESS: Found', data.length, 'reservations out of', count, 'total')
+      console.log("SUCCESS: Found", reservations.length, "reservations")
       
-      // Transform the data to match our interface with mock data for user and seat details
-      const transformedData: Reservation[] = data.map((item: any) => ({
+      // Simple transform with mock data
+      const transformedData: Reservation[] = reservations.map((item: any) => ({
         id: item.id,
-        userId: item.userid,
-        seatId: item.seatid,
-        startTime: item.starttime,
-        endTime: item.endtime,
+        userId: item.userId,
+        seatId: item.seatId,
+        startTime: item.startTime,
+        endTime: item.endTime,
         status: item.status,
-        checkInTime: item.checkintime,
-        checkOutTime: item.checkouttime,
-        createdAt: item.createdat,
-        user: {
-          id: item.userid,
-          fullName: `Student ${item.userid.substring(0, 8)}`,
-          email: `student${item.userid.substring(0, 8)}@mtu.edu`,
-          matricNumber: `MTU/${item.userid.substring(0, 6)}`
+        checkInTime: item.checkInTime,
+        checkOutTime: item.checkOutTime,
+        createdAt: item.createdAt,
+        user: { 
+          id: item.userId, 
+          fullName: "Student " + item.userId.substring(0, 8), 
+          email: "student" + item.userId.substring(0, 8) + "@mtu.edu", 
+          matricNumber: "MTU/" + item.userId.substring(0, 6)
         },
         seat: {
-          id: item.seatid,
-          seatNumber: `Seat ${item.seatid.substring(0, 6)}`,
-          features: [],
-          zone: {
-            id: item.seatid?.substring(0, 4) || 'unknown',
-            name: `Zone ${item.seatid?.substring(0, 4)}`,
-            themeColor: '#10B981'
-          }
-        }
+          id: item.seatId,
+          seatNumber: "Seat " + item.seatId.substring(0, 6),
+          zoneId: item.seatId?.substring(0, 4) || "unknown",
+          zone: { id: item.seatId?.substring(0, 4) || "unknown", name: "Zone " + item.seatId?.substring(0, 4) }
+        },
       }))
       
-      console.log('Transformed admin data:', transformedData.length)
+      console.log("Transformed data:", transformedData.length)
       setReservations(transformedData)
-      setPagination(prev => ({
-        ...prev,
-        totalCount: count || 0,
-        totalPages: Math.ceil((count || 0) / PAGE_SIZE),
-        currentPage: page
-      }))
+      setTotalCount(reservations.length)
       
     } catch (error) {
-      console.error('Error fetching admin reservations:', error)
+      console.error("Error fetching reservations:", error)
       toast({
-        title: 'Error',
-        description: 'Failed to load reservations',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to load reservations",
+        variant: "destructive",
       })
-      setReservations([])
     } finally {
       setIsLoading(false)
     }
-  }, [toast, zoneFilter, statusFilter, dateFilter])
+  }, [toast])
 
   const fetchZones = useCallback(async () => {
     try {
@@ -271,14 +181,22 @@ export default function ReservationsPage() {
 
   // Initial fetch - force refresh on mount
   useEffect(() => {
-    console.log('Admin ReservationsPage mounted - forcing refresh')
+    console.log("ReservationsPage mounted - forcing refresh")
     fetchZones()
-    fetchReservations(1)
+    fetchReservations()
+    
+    // Force a refresh after 1 second to ensure latest code runs
+    const timer = setTimeout(() => {
+      console.log("Forcing second fetch...")
+      fetchReservations()
+    }, 1000)
+    
+    return () => clearTimeout(timer)
   }, [fetchZones, fetchReservations])
 
   // Refetch when filters change
   useEffect(() => {
-    fetchReservations(1)
+    fetchReservations()
   }, [dateFilter, zoneFilter, statusFilter, fetchReservations])
 
   // Real-time subscription with enhanced feedback
@@ -306,13 +224,12 @@ export default function ReservationsPage() {
           // Show toast notification for new reservation
           const newReservation = payload.new
           toast({
-            title: "🎉 New reservation received!",
-            description: `${newReservation.userId} reserved a seat`,
-            className: "bg-emerald-500 text-white border-none"
+            title: "🎉 New Reservation!",
+            description: `${newReservation.fullName} reserved seat ${newReservation.seatId}`,
           })
           
           // Refetch reservations to get the full data with relations
-          await fetchReservations(pagination.currentPage)
+          await fetchReservations()
         }
       )
       .on(
@@ -332,7 +249,7 @@ export default function ReservationsPage() {
             })
           }
           
-          await fetchReservations(pagination.currentPage)
+          await fetchReservations()
         }
       )
       .subscribe()
@@ -340,7 +257,7 @@ export default function ReservationsPage() {
     return () => {
       subscription.unsubscribe()
     }
-  }, [fetchReservations, toast, pagination.currentPage])
+  }, [fetchReservations, toast])
 
   const handleCancel = async () => {
     if (!selectedReservation) return
@@ -359,7 +276,7 @@ export default function ReservationsPage() {
         className: "bg-[#10B981] text-white border-none",
       })
 
-      fetchReservations(pagination.currentPage)
+      fetchReservations()
     } catch (error) {
       console.error("Error cancelling reservation:", error)
       toast({
@@ -394,7 +311,7 @@ export default function ReservationsPage() {
         className: "bg-[#10B981] text-white border-none",
       })
 
-      fetchReservations(pagination.currentPage)
+      fetchReservations()
     } catch (error) {
       console.error("Error releasing seat:", error)
       toast({
@@ -408,11 +325,21 @@ export default function ReservationsPage() {
     }
   }
 
-  
-  const handlePageChange = (page: number) => {
-    if (page >= 1 && page <= pagination.totalPages) {
-      fetchReservations(page)
-    }
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+  }
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
   }
 
   return (
@@ -483,28 +410,16 @@ export default function ReservationsPage() {
         {isLoading ? (
           <div className="p-6 space-y-4">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="grid grid-cols-[2fr_1.5fr_1.5fr_1fr_1.5fr] gap-4 px-6 py-4 items-center">
-                <div className="flex items-center gap-3">
-                  <Skeleton className="w-10 h-10 rounded-full" />
-                  <div className="space-y-2 flex-1">
-                    <Skeleton className="w-32 h-4" />
-                    <Skeleton className="w-24 h-3" />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Skeleton className="w-20 h-4" />
+              <div key={i} className="flex items-center gap-4">
+                <Skeleton className="w-10 h-10 rounded-full" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="w-32 h-4" />
                   <Skeleton className="w-24 h-3" />
                 </div>
-                <div className="space-y-1">
-                  <Skeleton className="w-16 h-4" />
-                  <Skeleton className="w-20 h-3" />
-                </div>
-                <div>
-                  <Skeleton className="w-16 h-6 rounded-full" />
-                </div>
-                <div className="text-right">
-                  <Skeleton className="w-20 h-8 rounded" />
-                </div>
+                <Skeleton className="w-24 h-4" />
+                <Skeleton className="w-32 h-4" />
+                <Skeleton className="w-20 h-6" />
+                <Skeleton className="w-24 h-8" />
               </div>
             ))}
           </div>
@@ -573,7 +488,6 @@ export default function ReservationsPage() {
                       </p>
                     </div>
                   </div>
-
                   <div className="space-y-1">
                     <p className="font-semibold text-slate-900">
                       Seat {reservation.seat.seatNumber}
@@ -582,7 +496,6 @@ export default function ReservationsPage() {
                       {reservation.seat.zone.name}
                     </p>
                   </div>
-
                   <div className="space-y-1">
                     <p className="text-sm text-slate-900">
                       {formatDate(reservation.startTime)}
@@ -592,7 +505,6 @@ export default function ReservationsPage() {
                       {formatTime(reservation.endTime)}
                     </p>
                   </div>
-
                   <div>
                     <Badge
                       className={cn(
@@ -603,7 +515,6 @@ export default function ReservationsPage() {
                       {statusConfig[reservation.status].label}
                     </Badge>
                   </div>
-
                   <div className="text-right">
                     {reservation.status === "RESERVED" && (
                       <Button
@@ -644,7 +555,9 @@ export default function ReservationsPage() {
                     {(reservation.status === "NO_SHOW" ||
                       reservation.status === "CANCELLED") && (
                       <span className="text-xs text-slate-400">
-                        {reservation.status === "NO_SHOW" ? "Missed" : "Cancelled"}
+                        {reservation.status === "NO_SHOW"
+                          ? "Missed"
+                          : "Cancelled"}
                       </span>
                     )}
                   </div>
@@ -652,36 +565,14 @@ export default function ReservationsPage() {
               ))}
             </div>
 
-            {/* Pagination - Fixed */}
+            {/* Table Footer - Fixed */}
             <div className="flex items-center justify-between px-6 py-3 border-t border-slate-200 bg-slate-50 shrink-0">
               <p className="text-sm text-slate-500">
-                {pagination.totalCount} reservation{pagination.totalCount !== 1 ? 's' : ''} total
+                {totalCount} reservation{totalCount !== 1 ? 's' : ''} total
               </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(pagination.currentPage - 1)}
-                  disabled={pagination.currentPage <= 1}
-                  className="rounded-lg"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous
-                </Button>
-                <span className="text-sm text-slate-600 px-3">
-                  Page {pagination.currentPage} of {pagination.totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(pagination.currentPage + 1)}
-                  disabled={pagination.currentPage >= pagination.totalPages}
-                  className="rounded-lg"
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
+              <p className="text-sm text-slate-400">
+                Scroll to view more
+              </p>
             </div>
           </>
         )}

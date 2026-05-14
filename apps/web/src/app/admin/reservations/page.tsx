@@ -75,6 +75,7 @@ const statusConfig = {
   COMPLETED: { label: "Completed", variant: "outline" as const, color: "bg-slate-50 text-slate-600" },
   NO_SHOW: { label: "No Show", variant: "destructive" as const, color: "bg-rose-100 text-rose-700" },
   CANCELLED: { label: "Cancelled", variant: "outline" as const, color: "bg-amber-100 text-amber-700" },
+  UNKNOWN: { label: "Unknown", variant: "outline" as const, color: "bg-gray-100 text-gray-700" },
 }
 
 export default function ReservationsPage() {
@@ -98,61 +99,49 @@ export default function ReservationsPage() {
     console.log("fetchReservations called")
     setIsLoading(true)
     try {
+      console.log('Fetching admin reservations with filters:', { zoneFilter, statusFilter, dateFilter })
+
+      // Build simple query without joins to avoid relationship issues
+      // Explicitly select columns to prevent PostgREST from trying to resolve relationships
       let query = supabase
         .from("reservations")
-        .select(`
-          id,
-          userId,
-          seatId,
-          startTime,
-          endTime,
-          status,
-          createdAt,
-          users:userId (
-            id,
-            matricNumber,
-            avatarUrl
-          ),
-          seats:seatId (
-            id,
-            seatNumber,
-            zoneId,
-            zones:zoneId (
-              id,
-              name
-            )
-          )
-        `, { count: "exact" })
+        .select("id, userid, seatid, zoneid, starttime, endtime, status, checkintime, checkouttime, createdat, updatedat", { count: "exact" })
+        .order("starttime", { ascending: false })
+
+      console.log('Query built with explicit lowercase columns')
 
       // Apply date filter
       const now = new Date()
       if (dateFilter === "today") {
-        const today = now.toISOString().split("T")[0]
-        query = query.gte("startTime", today).lt("startTime", today + "T23:59:59")
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        query = query.gte("starttime", today.toISOString())
+          .lt("starttime", new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString())
       } else if (dateFilter === "yesterday") {
-        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-        const yesterdayStr = yesterday.toISOString().split("T")[0]
-        query = query.gte("startTime", yesterdayStr).lt("startTime", yesterdayStr + "T23:59:59")
+        const yesterday = new Date()
+        yesterday.setDate(yesterday.getDate() - 1)
+        yesterday.setHours(0, 0, 0, 0)
+        query = query.gte("starttime", yesterday.toISOString())
+          .lt("starttime", new Date(yesterday.getTime() + 24 * 60 * 60 * 1000).toISOString())
       } else if (dateFilter === "week") {
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
-        query = query.gte("startTime", weekAgo)
+        const weekAgo = new Date()
+        weekAgo.setDate(weekAgo.getDate() - 7)
+        query = query.gte("starttime", weekAgo.toISOString())
       } else if (dateFilter === "month") {
-        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
-        query = query.gte("startTime", monthAgo)
+        const monthAgo = new Date()
+        monthAgo.setDate(monthAgo.getDate() - 30)
+        query = query.gte("starttime", monthAgo.toISOString())
       }
 
       // Apply zone filter
       if (zoneFilter !== "all") {
-        query = query.eq("seats.zoneId", zoneFilter)
+        query = query.eq("seatid", zoneFilter)
       }
 
       // Apply status filter
       if (statusFilter !== "all") {
         query = query.eq("status", statusFilter.toUpperCase())
       }
-
-      // Order by start time
-      query = query.order("startTime", { ascending: false })
 
       const { data, error, count } = await query
 
@@ -166,22 +155,25 @@ export default function ReservationsPage() {
       // Transform data to match interface
       const transformedData: Reservation[] = (data || []).map((item: any) => ({
         id: item.id,
-        userId: item.userId,
-        seatId: item.seatId,
-        startTime: item.startTime,
-        endTime: item.endTime,
+        userId: item.userid,
+        seatId: item.seatid,
+        startTime: item.starttime,
+        endTime: item.endtime,
         status: item.status,
-        createdAt: item.createdAt,
+        createdAt: item.createdat,
         user: {
-          id: item.users?.id || "",
-          matricNumber: item.users?.matricNumber || "Unknown",
-          avatarUrl: item.users?.avatarUrl,
+          id: item.userid,
+          matricNumber: `MTU/${item.userid?.substring(0, 6) || 'Unknown'}`,
+          avatarUrl: undefined,
         },
         seat: {
-          id: item.seats?.id || "",
-          seatNumber: item.seats?.seatNumber || "-",
-          zoneId: item.seats?.zoneId || "",
-          zone: item.seats?.zones || { id: "", name: "Unknown Zone" },
+          id: item.seatid,
+          seatNumber: `Seat ${item.seatid?.substring(0, 6) || 'Unknown'}`,
+          zoneId: item.zoneid || "",
+          zone: {
+            id: item.zoneid || "",
+            name: `Zone ${item.zoneid?.substring(0, 4) || 'Unknown'}`,
+          },
         },
       }))
 
@@ -481,10 +473,10 @@ export default function ReservationsPage() {
                     <Badge
                       className={cn(
                         "rounded-full px-3 py-1 text-xs font-medium",
-                        statusConfig[reservation.status].color
+                        statusConfig[reservation.status]?.color || statusConfig.UNKNOWN.color
                       )}
                     >
-                      {statusConfig[reservation.status].label}
+                      {statusConfig[reservation.status]?.label || statusConfig.UNKNOWN.label}
                     </Badge>
                   </div>
                   <div className="text-right">
