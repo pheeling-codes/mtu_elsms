@@ -473,6 +473,16 @@ export default function FindSeatPage() {
       // Atomic transaction: Create reservation and update seat atomically
       // Use Supabase transaction to ensure data consistency
       const reservationId = crypto.randomUUID()
+
+      // Fetch zone name for display
+      const { data: zoneData } = await supabase
+        .from('zones')
+        .select('name')
+        .eq('id', selectedSeat.zoneId)
+        .single()
+
+      const zoneName = zoneData?.name || 'Unknown Zone'
+
       const { data: reservation, error } = await supabase
         .from('reservations')
         .insert({
@@ -480,6 +490,10 @@ export default function FindSeatPage() {
           userid: currentUser.id,
           seatid: selectedSeat.id,
           zoneid: selectedSeat.zoneId,
+          seatname: selectedSeat.seatNumber,
+          zonename: zoneName,
+          studentname: currentUser.fullName || 'Unknown Student',
+          studentmatric: currentUser.matricNumber || 'Unknown',
           starttime: startDateTime.toISOString(),
           endtime: endDateTime.toISOString(),
           status: 'RESERVED'

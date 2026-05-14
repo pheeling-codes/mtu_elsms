@@ -167,7 +167,7 @@ export default function ReservationsPage() {
 
         const { data, error } = await supabase
           .from('reservations')
-          .select('*')
+          .select('id, userid, seatid, zoneid, seatname, zonename, studentname, studentmatric, starttime, endtime, status, checkintime, checkouttime, createdat, updatedat')
           .eq('userid', user.id)
           .order('starttime', { ascending: false })
           .limit(50)
@@ -188,8 +188,16 @@ export default function ReservationsPage() {
             const now = new Date()
 
             let status: Reservation['status'] = 'upcoming'
+            // Explicitly handle database status values
             if (item.status === 'ACTIVE') status = 'active'
-            else if (item.status === 'COMPLETED' || item.status === 'CANCELLED') status = 'past'
+            else if (item.status === 'RESERVED') {
+              // Reserved reservations are upcoming if start time is in future, active if currently in progress
+              if (startTime <= now && endTime > now) status = 'active'
+              else if (startTime > now) status = 'upcoming'
+              else status = 'past'
+            }
+            else if (item.status === 'COMPLETED' || item.status === 'CANCELLED' || item.status === 'NO_SHOW') status = 'past'
+            // Fallback to time-based logic for unknown statuses
             else if (startTime <= now && endTime > now) status = 'active'
             else if (startTime > now) status = 'upcoming'
             else status = 'past'
@@ -197,8 +205,8 @@ export default function ReservationsPage() {
             return {
               id: item.id,
               seatId: item.seatid,
-              seatName: `Seat ${item.seatid?.substring(0, 6) || 'Unknown'}`,
-              zone: 'Zone A', // Default zone since we're not doing joins
+              seatName: item.seatname || `Seat ${item.seatid?.substring(0, 6) || 'Unknown'}`,
+              zone: item.zonename || 'Zone A',
               date: formatDate(new Date(item.starttime)),
               startTime: formatTime(new Date(item.starttime)),
               endTime: formatTime(new Date(item.endtime)),

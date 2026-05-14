@@ -105,7 +105,7 @@ export default function ReservationsPage() {
       // Explicitly select columns to prevent PostgREST from trying to resolve relationships
       let query = supabase
         .from("reservations")
-        .select("id, userid, seatid, zoneid, starttime, endtime, status, checkintime, checkouttime, createdat, updatedat", { count: "exact" })
+        .select("id, userid, seatid, zoneid, seatname, zonename, studentname, studentmatric, starttime, endtime, status, checkintime, checkouttime, createdat, updatedat", { count: "exact" })
         .order("starttime", { ascending: false })
 
       console.log('Query built with explicit lowercase columns')
@@ -163,16 +163,17 @@ export default function ReservationsPage() {
         createdAt: item.createdat,
         user: {
           id: item.userid,
-          matricNumber: `MTU/${item.userid?.substring(0, 6) || 'Unknown'}`,
+          matricNumber: item.studentmatric || `MTU/${item.userid?.substring(0, 6) || 'Unknown'}`,
           avatarUrl: undefined,
+          fullName: item.studentname || 'Unknown Student',
         },
         seat: {
           id: item.seatid,
-          seatNumber: `Seat ${item.seatid?.substring(0, 6) || 'Unknown'}`,
+          seatNumber: item.seatname || `Seat ${item.seatid?.substring(0, 6) || 'Unknown'}`,
           zoneId: item.zoneid || "",
           zone: {
             id: item.zoneid || "",
-            name: `Zone ${item.zoneid?.substring(0, 4) || 'Unknown'}`,
+            name: item.zonename || `Zone ${item.zoneid?.substring(0, 4) || 'Unknown'}`,
           },
         },
       }))
