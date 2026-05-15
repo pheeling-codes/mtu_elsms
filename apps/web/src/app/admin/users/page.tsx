@@ -45,6 +45,7 @@ import { useToast } from "@/hooks/use-toast"
 
 interface UserData {
   id: string
+  fullName: string
   matricNumber: string
   role: "STUDENT" | "ADMIN"
   createdAt: string
@@ -93,26 +94,18 @@ export default function UsersPage() {
     try {
       const { data: usersData, error: usersError } = await supabase
         .from("users")
-        .select("id, matricNumber, role, createdAt")
+        .select("id, full_name, matricNumber, role, createdAt")
         .order("createdAt", { ascending: false })
 
       if (usersError) throw usersError
 
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers()
-      
-      const emailMap = new Map()
-      if (!authError && authUsers?.users) {
-        authUsers.users.forEach((authUser: any) => {
-          emailMap.set(authUser.id, authUser.email)
-        })
-      }
-
       const transformedUsers: UserData[] = (usersData || []).map((user: any) => ({
         id: user.id,
+        fullName: user.full_name || user.matricNumber || 'Unknown',
         matricNumber: user.matricNumber,
         role: user.role,
         createdAt: user.createdAt,
-        email: emailMap.get(user.id) || `${user.matricNumber.toLowerCase()}@university.edu`,
+        email: `${user.matricNumber?.toLowerCase() || 'user'}@university.edu`,
       }))
 
       setUsers(transformedUsers)
@@ -142,6 +135,7 @@ export default function UsersPage() {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(
         (user) =>
+          user.fullName.toLowerCase().includes(query) ||
           user.matricNumber.toLowerCase().includes(query) ||
           user.email?.toLowerCase().includes(query) ||
           user.id.toLowerCase().includes(query)
@@ -178,7 +172,7 @@ export default function UsersPage() {
       const { count: totalCount, error: totalError } = await supabase
         .from("reservations")
         .select("*", { count: "exact", head: true })
-        .eq("userId", userId)
+        .eq("userid", userId)
 
       if (totalError) throw totalError
 
@@ -186,28 +180,28 @@ export default function UsersPage() {
         .from("reservations")
         .select(`
           id,
-          seatId,
-          startTime,
-          endTime,
+          seatid,
+          starttime,
+          endtime,
           status,
-          seats:seatId (
+          seats (
             seatNumber,
-            zones:zoneId (
+            zones (
               name
             )
           )
         `)
-        .eq("userId", userId)
-        .order("startTime", { ascending: false })
+        .eq("userid", userId)
+        .order("starttime", { ascending: false })
         .limit(5)
 
       if (recentError) throw recentError
 
       const recentReservations: ReservationData[] = (recentData || []).map((r: any) => ({
         id: r.id,
-        seatId: r.seatId,
-        startTime: r.startTime,
-        endTime: r.endTime,
+        seatId: r.seatid,
+        startTime: r.starttime,
+        endTime: r.endtime,
         status: r.status,
         seat: {
           seatNumber: r.seats?.seatNumber || "-",
@@ -401,9 +395,9 @@ export default function UsersPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-[#10B981] to-[#059669] rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                      {user.matricNumber.charAt(0).toUpperCase()}
+                      {user.fullName.charAt(0).toUpperCase()}
                     </div>
-                    <p className="font-semibold text-slate-900">{user.matricNumber}</p>
+                    <p className="font-semibold text-slate-900">{user.fullName}</p>
                   </div>
                   <div className="text-sm text-slate-600 truncate">{user.email}</div>
                   <div className="text-sm text-slate-700">{user.role === "ADMIN" ? "-" : user.matricNumber}</div>
