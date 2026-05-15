@@ -461,20 +461,13 @@ export default function FindSeatPage() {
   }
 
   const handleReserve = async () => {
-    console.log('handleReserve called, selectedSeat:', selectedSeat)
-    if (!selectedSeat) {
-      console.log('No seat selected')
-      return
-    }
+    if (!selectedSeat) return
 
     setIsReserving(true)
     try {
-      console.log('Getting current user...')
       // Get current user with complete identity
       const currentUser = await AuthService.getCurrentUser()
-      console.log('Current user:', currentUser)
       if (!currentUser) {
-        console.log('No authenticated user')
         toast.error("Authentication Required", {
           description: "Please sign in to make a reservation.",
         })
@@ -496,23 +489,19 @@ export default function FindSeatPage() {
 
       // Validate time interval (1-4 hours)
       const durationHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60)
-      console.log('Duration hours:', durationHours)
       if (durationHours < 1) {
-        console.log('Duration less than 1 hour')
         toast.error("Invalid Duration", {
           description: "Reservation duration must be at least 1 hour.",
         })
         return
       }
       if (durationHours > 4) {
-        console.log('Duration more than 4 hours')
         toast.error("Invalid Duration", {
           description: "Reservation duration cannot exceed 4 hours.",
         })
         return
       }
       if (startHour === endHour) {
-        console.log('Start hour equals end hour')
         toast.error("Invalid Time", {
           description: "Start time and end time cannot be the same.",
         })
@@ -520,16 +509,12 @@ export default function FindSeatPage() {
       }
 
       // Validate that date and time are not in the past
-      console.log('Checking if date/time is in the past:', startDateTime, now)
       if (startDateTime < now) {
-        console.log('Date/time is in the past')
         toast.error("Invalid Date/Time", {
           description: "Cannot make reservations for past dates or times.",
         })
         return
       }
-
-      console.log('Validation passed, creating reservation...')
 
       // Atomic transaction: Create reservation and update seat atomically
       // Use Supabase transaction to ensure data consistency
