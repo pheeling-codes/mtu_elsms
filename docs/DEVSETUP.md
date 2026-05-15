@@ -21,8 +21,12 @@ cd mtu_elsms
 pnpm install
 
 # Configure environment
+cp .env.example .env
+# Edit .env with your Supabase credentials
+
+# Also configure web app environment
 cp apps/web/.env.local.example apps/web/.env.local
-# Edit .env.local with your Supabase credentials
+# Edit apps/web/.env.local with your Supabase credentials
 
 # Sync database
 pnpm db:push

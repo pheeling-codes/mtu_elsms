@@ -138,13 +138,9 @@ export default function ReservationsPage() {
   const [newReservationIds, setNewReservationIds] = useState<Set<string>>(new Set())
 
   const fetchReservations = useCallback(async (page: number = 1) => {
-    console.log("=== ADMIN GLOBAL RESERVATIONS FETCH ===")
     setIsLoading(true)
-    
-    try {
-      console.log('Fetching admin reservations with filters:', { zoneFilter, statusFilter, dateFilter, page })
-      console.log('Admin version:', ADMIN_VERSION)
 
+    try {
       // Build simple query without joins to avoid relationship issues
       // Explicitly select columns to prevent PostgREST from trying to resolve relationships
       let query = supabase
@@ -152,8 +148,6 @@ export default function ReservationsPage() {
         .select('id, userid, seatid, zoneid, starttime, endtime, status, checkintime, checkouttime, createdat, updatedat', { count: 'exact' })
         .order('starttime', { ascending: false })
         .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
-
-      console.log('Query built with explicit lowercase columns')
 
       // Apply filters
       if (zoneFilter !== 'all') {
@@ -185,17 +179,11 @@ export default function ReservationsPage() {
 
       const { data, error, count } = await query
 
-      console.log('Admin query result:', data?.length || 0, 'Total count:', count, 'Error:', error)
-      console.log('Raw admin reservation data:', data)
-      console.log('Query URL used:', (query as any).url || 'No URL available')
-
       if (error) {
-        console.error('Admin fetch error:', error)
         throw error
       }
 
       if (!data || data.length === 0) {
-        console.log('No reservations found')
         setReservations([])
         setPagination(prev => ({
           ...prev,
@@ -205,8 +193,6 @@ export default function ReservationsPage() {
         }))
         return
       }
-      
-      console.log('SUCCESS: Found', data.length, 'reservations out of', count, 'total')
       
       // Transform the data to match our interface with mock data for user and seat details
       const transformedData: Reservation[] = data.map((item: any) => ({
@@ -237,7 +223,6 @@ export default function ReservationsPage() {
         }
       }))
       
-      console.log('Transformed admin data:', transformedData.length)
       setReservations(transformedData)
       setPagination(prev => ({
         ...prev,
@@ -247,7 +232,6 @@ export default function ReservationsPage() {
       }))
       
     } catch (error) {
-      console.error('Error fetching admin reservations:', error)
       toast({
         title: 'Error',
         description: 'Failed to load reservations',
@@ -265,13 +249,11 @@ export default function ReservationsPage() {
       if (error) throw error
       setZones(data || [])
     } catch (error) {
-      console.error("Error fetching zones:", error)
     }
   }, [])
 
   // Initial fetch - force refresh on mount
   useEffect(() => {
-    console.log('Admin ReservationsPage mounted - forcing refresh')
     fetchZones()
     fetchReservations(1)
   }, [fetchZones, fetchReservations])
@@ -289,8 +271,6 @@ export default function ReservationsPage() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "reservations" },
         async (payload: any) => {
-          console.log("New reservation received:", payload)
-          
           // Add to new reservations for animation
           setNewReservationIds(prev => new Set(prev).add(payload.new.id))
           
@@ -319,8 +299,6 @@ export default function ReservationsPage() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "reservations" },
         async (payload: any) => {
-          console.log("Reservation updated:", payload)
-          
           // Show toast for status changes
           const updatedReservation = payload.new
           const oldReservation = payload.old

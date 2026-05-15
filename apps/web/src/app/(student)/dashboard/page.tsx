@@ -94,7 +94,6 @@ export default function StudentDashboard() {
       }
 
       // Fetch user-specific stats (fallback to demo data for now)
-      // TODO: Replace with actual reservation history queries
       const userTotalOccupied = 12  // Demo: total seats user has occupied in history
       const userReserved = 3        // Demo: current reservations by user
 

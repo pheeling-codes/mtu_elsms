@@ -110,27 +110,23 @@ export default function ProfilePage() {
     const fetchUserData = async () => {
       try {
         setLoading(true)
-        console.log('[Profile] Fetching session...')
-        
+
         // Use getSession() for auto token refresh
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
         
         if (sessionError) {
-          console.error('[Profile] Session error:', sessionError)
           setLoading(false)
           router.push('/login')
           return
         }
         
         if (!session?.user) {
-          console.log('[Profile] No session user found')
           setLoading(false)
           router.push('/login')
           return
         }
-        
+
         const authUser = session.user
-        console.log('[Profile] Auth user:', authUser.id, authUser.email)
 
         // Set basic user from auth session (always available)
         const basicUser: AuthUser = {
@@ -155,7 +151,6 @@ export default function ProfilePage() {
             console.warn('[Profile] Database fetch failed, using auth data:', userError.message)
             // Continue with auth data - don't fail
           } else if (userData) {
-            console.log('[Profile] Database data received:', userData)
             // Try multiple possible column names for avatar (old vs new schema)
             const avatarUrl = userData.avatar_url || userData.avatarUrl || userData.avatar || undefined
             const fullName = userData.full_name || userData.fullName || userData.name || undefined
@@ -175,8 +170,7 @@ export default function ProfilePage() {
               createdAt: createdAt,
               updatedAt: updatedAt,
             } as any)
-            console.log('[Profile] Enhanced with database data, avatar:', avatarUrl, 'timestamps:', { createdAt, updatedAt })
-          }
+            }
         } catch (dbError) {
           console.warn('[Profile] Database error, using auth data:', dbError)
           // Continue with auth data - don't fail
@@ -207,14 +201,11 @@ export default function ProfilePage() {
             })
           }
         } catch (analyticsError) {
-          console.warn('[Profile] Analytics fetch failed:', analyticsError)
           // Continue without analytics - don't fail
         }
         
         setLoading(false)
-        console.log('[Profile] Profile loaded successfully')
-      } catch (error) {
-        console.error('[Profile] Unexpected error:', error)
+        } catch (error) {
         // Still render the page even on error
         setLoading(false)
         // Don't show toast for profile load errors - just render with available data
@@ -519,14 +510,14 @@ export default function ProfilePage() {
                   className="bg-slate-100 text-slate-700 border-0 flex items-center gap-2 px-3 py-1"
                 >
                   <Hash className="w-3.5 h-3.5 text-slate-500" />
-                  {user.matricNumber || "No Matric Number"}
+                  {user?.matricNumber || "No Matric Number"}
                 </Badge>
                 <Badge
                   variant="secondary"
                   className="bg-slate-100 text-slate-700 border-0 flex items-center gap-2 px-3 py-1"
                 >
                   <Mail className="w-3.5 h-3.5 text-slate-500" />
-                  {user.email}
+                  {user?.email}
                 </Badge>
               </div>
               

@@ -2,9 +2,30 @@
 
 A premium, context-aware data intelligence platform for university space management, engineered to maximize seat occupancy efficiency and provide comprehensive administrative oversight.
 
-## Core Value Proposition
+## Documentation
 
-**High-Impact Utility**: Transform library space utilization through intelligent seat management, real-time occupancy tracking, and data-driven administrative control. ELSMS delivers precision seat allocation, automated reservation workflows, and comprehensive analytics for optimal space efficiency.
+For complete project documentation, see the [docs/](./docs/) directory:
+- [Project Overview](./docs/README.md) - Complete project overview and architecture
+- [Development Setup](./docs/DEVSETUP.md) - Complete development setup guide
+- [Technical Methodology](./docs/METHODOLOGY.md) - Technical methodology and implementation details
+- [Product Requirements](./docs/PRD.md) - Product Requirements Document
+
+## Quick Start
+
+```bash
+# Clone and install dependencies
+git clone <repository-url>
+cd mtu_elsms
+pnpm install
+
+# Configure environment
+cp .env.example .env
+cp apps/web/.env.local.example apps/web/.env.local
+# Edit .env files with your Supabase credentials
+
+# Start development
+pnpm dev
+```
 
 ## Key Features
 
@@ -52,39 +73,9 @@ elsms-monorepo/
 ├── packages/
 │   ├── database/      # Prisma schema and database utilities
 │   └── types/         # Shared TypeScript definitions
+├── docs/              # Centralized documentation
 └── turbo.json         # Monorepo build configuration
 ```
-
-## Database Schema
-
-The system is built on a relational PostgreSQL schema with the following core entities:
-
-- **Users**: Student and administrator profiles with authentication
-- **Zones**: Configurable library areas (quiet, group, charging)
-- **Seats**: Individual seating with position coordinates and status tracking
-- **Reservations**: Time-based seat allocations with status management
-- **SystemSettings**: Global configuration for library operations
-
-## Real-Time Features
-
-- **Live Seat Status**: Instant updates across all connected clients
-- **Reservation Notifications**: Real-time booking confirmations and alerts
-- **Administrative Dashboard**: Dynamic occupancy metrics without page refresh
-- **Conflict Resolution**: Automated handling of simultaneous reservation attempts
-
-## Security & Performance
-
-- **Row Level Security**: Database-level access control via Supabase RLS
-- **JWT Authentication**: Secure token-based user sessions
-- **Optimized Queries**: Efficient database operations with proper indexing
-- **CDN Integration**: Fast asset delivery through Supabase Storage
-
-## Deployment Architecture
-
-- **Frontend**: Vercel deployment with edge optimization
-- **Backend**: Supabase cloud infrastructure
-- **Database**: Managed PostgreSQL with automated backups
-- **Storage**: Supabase Storage with CDN acceleration
 
 ---
 

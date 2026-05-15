@@ -161,14 +161,12 @@ export default function ReservationsPage() {
   useEffect(() => {
     const fetchStudentReservations = async () => {
       if (!user?.id) {
-        console.log('No user session found')
         setIsLoading(false)
         return
       }
 
       try {
         setIsLoading(true)
-        console.log('Fetching reservations for student:', user.id)
 
         const { data, error } = await supabase
           .from('reservations')
@@ -181,9 +179,6 @@ export default function ReservationsPage() {
           console.error('Error fetching student reservations:', error)
           throw error
         }
-
-        console.log('Student reservations fetched:', data?.length || 0)
-        console.log('Raw reservation data:', data)
 
         // Transform the data to match our interface
         const transformedReservations: Reservation[] = (data || []).map((item: any) => {
@@ -213,7 +208,6 @@ export default function ReservationsPage() {
           }
         }).filter((item: Reservation | null): item is Reservation => item !== null)
 
-        console.log('Transformed reservations:', transformedReservations)
         setReservations(transformedReservations)
       } catch (error) {
         console.error('Error in fetchStudentReservations:', error)
@@ -243,7 +237,6 @@ export default function ReservationsPage() {
       if (activeTab === "past") return ["COMPLETED", "CANCELLED", "NO_SHOW"].includes(r.status)
       return false
     })
-    console.log('Active tab:', activeTab, 'Filtered reservations:', filtered.length, 'Total reservations:', reservations.length)
     return filtered
   }, [reservations, activeTab])
 
@@ -255,8 +248,6 @@ export default function ReservationsPage() {
 
   // Handle check in
   const handleCheckIn = async () => {
-    // TODO: Implement Supabase mutation
-    console.log("Checking in...", selectedReservation?.id)
     setIsDialogOpen(false)
   }
 
