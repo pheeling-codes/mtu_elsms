@@ -20,7 +20,7 @@ export function createRouteHandlerClient(
   return async (request: NextRequest) => {
     try {
       // Get user session from Supabase
-      const supabase = createServerComponentClient()
+      const supabase = await createServerComponentClient()
       const { data: { user }, error } = await supabase.auth.getUser()
 
       if (error || !user) {
@@ -69,7 +69,7 @@ export function createAdminRouteHandler(
   return async (request: NextRequest) => {
     try {
       // Get user session from Supabase
-      const supabase = createServerComponentClient()
+      const supabase = await createServerComponentClient()
       const { data: { user }, error } = await supabase.auth.getUser()
 
       if (error || !user) {
@@ -139,7 +139,7 @@ export function createStudentRouteHandler(
   return async (request: NextRequest) => {
     try {
       // Get user session from Supabase
-      const supabase = createServerComponentClient()
+      const supabase = await createServerComponentClient()
       const { data: { user }, error } = await supabase.auth.getUser()
 
       if (error || !user) {

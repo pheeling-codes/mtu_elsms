@@ -78,8 +78,8 @@ export class AuthService {
         matricNumber = identifier
         const { data: userData, error: userError } = await supabase
           .from("users")
-          .select("id, email, matricNumber, role")
-          .eq("matricNumber", identifier)
+          .select("id, email, matric_number, role")
+          .eq("matric_number", identifier)
           .single()
 
         if (userError || !userData) {
@@ -110,7 +110,7 @@ export class AuthService {
       // Fetch user role from database
       const { data: userRecord, error: userError } = await supabase
         .from("users")
-        .select("id, role, matricNumber")
+        .select("id, role, matric_number")
         .eq("id", data.user.id)
         .single()
 
@@ -124,13 +124,16 @@ export class AuthService {
         const now = new Date().toISOString()
         const { error: createError } = await supabase.from("users").insert({
           id: data.user.id,
-          matricNumber: userMatric || 'TEMP-' + data.user.id.substring(0, 8),
+          full_name: data.user.user_metadata?.full_name || data.user.user_metadata?.fullName || data.user.email?.split('@')[0] || 'User',
+          email: data.user.email,
+          matric_number: userMatric || 'TEMP-' + data.user.id.substring(0, 8),
           role: userRole,
           createdAt: now,
           updatedAt: now,
         })
         
         if (createError) {
+          console.error("User creation error:", createError)
           // Return user-friendly error for profile not found
           return { user: null, error: "Profile not found. Please contact an administrator." }
         }
@@ -155,7 +158,7 @@ export class AuthService {
           id: data.user.id,
           email: data.user.email!,
           role: userRecord.role as Role,
-          matricNumber: userRecord.matricNumber,
+          matricNumber: userRecord.matric_number,
         }
       }
     } catch (err) {
@@ -173,8 +176,8 @@ export class AuthService {
       if (matricNumber) {
         const { data: existingUser, error: checkError } = await supabase
           .from("users")
-          .select("id, matricNumber")
-          .eq("matricNumber", matricNumber)
+          .select("id, matric_number")
+          .eq("matric_number", matricNumber)
           .single()
 
         if (existingUser) {
@@ -206,9 +209,9 @@ export class AuthService {
       // User is authenticated now, so this should work with RLS
       const { error: syncError } = await supabase.from("users").upsert({
         id: data.user.id,
-        fullName: fullName,
+        full_name: fullName,
         email: email,
-        matricNumber: matricNumber || 'TEMP-' + data.user.id.substring(0, 8),
+        matric_number: matricNumber || 'TEMP-' + data.user.id.substring(0, 8),
         role: role,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
