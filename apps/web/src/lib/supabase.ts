@@ -28,7 +28,7 @@ const createDummyClient = () => {
 // Configure Supabase client with explicit auth settings for cookie persistence
 const createSupabaseClient = () => {
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('Supabase env vars missing, using dummy client')
+    console.error("Supabase Client Error: Missing URL or Anon Key environment injection.");
     return createDummyClient();
   }
   
