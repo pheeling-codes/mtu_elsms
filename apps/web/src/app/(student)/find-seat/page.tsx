@@ -537,7 +537,7 @@ export default function FindSeatPage() {
           seatId: selectedSeat.id,
           startTime: startDateTime.toISOString(),
           endTime: endDateTime.toISOString(),
-          status: 'RESERVED',
+          status: 'ACTIVE',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         })
