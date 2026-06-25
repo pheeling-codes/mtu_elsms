@@ -446,22 +446,22 @@ export default function ReservationsPage() {
           <>
             {/* Table Header - Fixed */}
             <div className="grid grid-cols-[2fr_1.5fr_1.5fr_1fr_1fr_1.5fr] gap-4 px-6 py-3 bg-slate-50 border-b border-slate-200 shrink-0">
-              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
+              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider text-center">
                 User
               </div>
-              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
+              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider text-center">
                 Seat & Zone
               </div>
-              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
+              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider text-center">
                 Time
               </div>
-              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
+              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider text-center">
                 Status
               </div>
-              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
+              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider text-center">
                 Created At
               </div>
-              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider text-right">
+              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider text-center">
                 Actions
               </div>
             </div>
@@ -476,12 +476,12 @@ export default function ReservationsPage() {
                   key={reservation.id}
                   className="grid grid-cols-[2fr_1.5fr_1.5fr_1fr_1fr_1.5fr] gap-4 px-6 py-4 items-center hover:bg-slate-50 transition-colors"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-[#10B981] to-[#059669] rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-[#10B981] to-[#059669] rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0">
                       {reservation.user.fullName.charAt(0).toUpperCase()}
                     </div>
-                    <div>
-                      <p className="font-semibold text-slate-900">
+                    <div className="text-left">
+                      <p className="font-semibold text-slate-900 truncate max-w-[140px]">
                         {reservation.user.fullName}
                       </p>
                       <p className="text-xs text-slate-500">
@@ -489,7 +489,7 @@ export default function ReservationsPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1 text-center">
                     <p className="font-semibold text-slate-900">
                       {reservation.seat.seatNumber}
                     </p>
@@ -497,7 +497,7 @@ export default function ReservationsPage() {
                       {reservation.seat.zone.name}
                     </p>
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1 text-center">
                     <p className="text-sm text-slate-900">
                       {formatDate(reservation.startTime)}
                     </p>
@@ -506,7 +506,7 @@ export default function ReservationsPage() {
                       {formatTime(reservation.endTime)}
                     </p>
                   </div>
-                  <div>
+                  <div className="flex justify-center">
                     <Badge
                       className={cn(
                         "rounded-full px-3 py-1 text-xs font-medium",
@@ -516,7 +516,7 @@ export default function ReservationsPage() {
                       {statusConfig[reservation.status]?.label || statusConfig.UNKNOWN.label}
                     </Badge>
                   </div>
-                  <div>
+                  <div className="space-y-1 text-center">
                     <p className="text-xs text-slate-600">
                       {reservation.createdAt ? new Date(reservation.createdAt).toLocaleDateString() : 'N/A'}
                     </p>
@@ -524,7 +524,7 @@ export default function ReservationsPage() {
                       {reservation.createdAt ? new Date(reservation.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                     </p>
                   </div>
-                  <div className="text-right flex items-center justify-end gap-2">
+                  <div className="flex items-center justify-center gap-2">
                     {reservation.status === "RESERVED" && (
                       <Button
                         variant="outline"
