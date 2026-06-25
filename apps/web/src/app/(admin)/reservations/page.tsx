@@ -504,19 +504,19 @@ export default function ReservationsPage() {
           <>
             {/* Table Header - Fixed */}
             <div className="grid grid-cols-[2fr_1.5fr_1.5fr_1fr_1.5fr] gap-4 px-6 py-3 bg-slate-50 border-b border-slate-200 shrink-0">
-              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider text-center">
+              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
                 User
               </div>
-              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider text-center">
+              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
                 Seat & Zone
               </div>
-              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider text-center">
+              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
                 Time
               </div>
-              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider text-center">
+              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
                 Status
               </div>
-              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider text-center">
+              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider text-right">
                 Actions
               </div>
             </div>
@@ -535,12 +535,12 @@ export default function ReservationsPage() {
                       : 'hover:bg-slate-50'
                   }`}
                 >
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-[#10B981] to-[#059669] rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-[#10B981] to-[#059669] rounded-full flex items-center justify-center text-white font-semibold text-sm">
                       {reservation.user.fullName.charAt(0).toUpperCase()}
                     </div>
-                    <div className="text-left">
-                      <p className="font-semibold text-slate-900 truncate max-w-[140px]">
+                    <div>
+                      <p className="font-semibold text-slate-900">
                         {reservation.user.fullName}
                       </p>
                       <p className="text-xs text-slate-500">
@@ -549,7 +549,7 @@ export default function ReservationsPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-1 text-center">
+                  <div className="space-y-1">
                     <p className="font-semibold text-slate-900">
                       {reservation.seat.seatNumber}
                     </p>
@@ -558,7 +558,7 @@ export default function ReservationsPage() {
                     </p>
                   </div>
 
-                  <div className="space-y-1 text-center">
+                  <div className="space-y-1">
                     <p className="text-sm text-slate-900">
                       {formatDate(reservation.startTime)}
                     </p>
@@ -568,7 +568,7 @@ export default function ReservationsPage() {
                     </p>
                   </div>
 
-                  <div className="flex justify-center">
+                  <div>
                     <Badge
                       className={cn(
                         "rounded-full px-3 py-1 text-xs font-medium",
@@ -579,7 +579,7 @@ export default function ReservationsPage() {
                     </Badge>
                   </div>
 
-                  <div className="flex items-center justify-center gap-2">
+                  <div className="text-right">
                     {reservation.status === "RESERVED" && (
                       <Button
                         variant="outline"

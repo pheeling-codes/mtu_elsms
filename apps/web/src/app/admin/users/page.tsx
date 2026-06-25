@@ -94,18 +94,18 @@ export default function UsersPage() {
     try {
       const { data: usersData, error: usersError } = await supabase
         .from("users")
-        .select("id, full_name, matricNumber, role, createdAt")
+        .select("id, full_name, email, matric_number, role, createdAt")
         .order("createdAt", { ascending: false })
 
       if (usersError) throw usersError
 
       const transformedUsers: UserData[] = (usersData || []).map((user: any) => ({
         id: user.id,
-        fullName: user.full_name || user.matricNumber || 'Unknown',
-        matricNumber: user.matricNumber,
+        fullName: user.full_name || user.matric_number || 'Unknown',
+        matricNumber: user.matric_number,
         role: user.role,
         createdAt: user.createdAt,
-        email: `${user.matricNumber?.toLowerCase() || 'user'}@university.edu`,
+        email: user.email || `${user.matric_number?.toLowerCase() || 'user'}@university.edu`,
       }))
 
       setUsers(transformedUsers)

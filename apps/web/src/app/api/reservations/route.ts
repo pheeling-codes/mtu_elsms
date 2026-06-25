@@ -46,9 +46,9 @@ export const GET = createRouteHandlerClient(
           createdAt,
           users!inner (
             id,
-            fullName,
+            full_name,
             email,
-            matricNumber,
+            matric_number,
             role
           ),
           seats!inner (

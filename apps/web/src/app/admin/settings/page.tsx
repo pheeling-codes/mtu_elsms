@@ -104,13 +104,13 @@ export default function SettingsPage() {
       if (user) {
         const { data: userData } = await supabase
           .from("users")
-          .select("matricNumber, role")
+          .select("matric_number, role")
           .eq("id", user.id)
           .single()
         
         setAdminProfile({
           id: user.id,
-          name: userData?.matricNumber || "Administrator",
+          name: userData?.matric_number || "Administrator",
           email: user.email || "",
           role: userData?.role || "ADMIN",
           employeeId: `EMP-${user.id.slice(0, 8).toUpperCase()}`,

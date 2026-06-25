@@ -336,7 +336,7 @@ export default function ProfilePage() {
       const { error: updateError } = await supabase
         .from("users")
         .update({ 
-          avatarUrl: result.url,
+          avatar_url: result.url,
           updatedAt: new Date().toISOString()
         })
         .eq("id", user.id)
