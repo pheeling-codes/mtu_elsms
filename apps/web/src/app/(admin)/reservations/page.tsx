@@ -142,10 +142,10 @@ export default function ReservationsPage() {
 
     try {
       // Build simple query without joins to avoid relationship issues
-      // Explicitly select columns to prevent PostgREST from trying to resolve relationships
+      // Build simple query with joins to get related data
       let query = supabase
         .from('reservations')
-        .select('*', { count: 'exact' })
+        .select('*, users(full_name, matric_number), seats(seatNumber, zoneId, zones(name))', { count: 'exact' })
         .order('startTime', { ascending: false })
         .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
 
@@ -207,17 +207,17 @@ export default function ReservationsPage() {
         createdAt: item.createdAt,
         user: {
           id: item.userId,
-          fullName: `Student ${item.userId.substring(0, 8)}`,
+          fullName: item.users?.full_name || `Student ${item.userId.substring(0, 8)}`,
           email: `student${item.userId.substring(0, 8)}@mtu.edu`,
-          matricNumber: `MTU/${item.userId.substring(0, 6)}`
+          matricNumber: item.users?.matric_number || `MTU/${item.userId.substring(0, 6)}`
         },
         seat: {
           id: item.seatId,
-          seatNumber: `Seat ${item.seatId.substring(0, 6)}`,
+          seatNumber: item.seats?.seatNumber ? `Seat ${item.seats.seatNumber}` : `Seat ${item.seatId.substring(0, 6)}`,
           features: [],
           zone: {
-            id: item.seatId?.substring(0, 4) || 'unknown',
-            name: `Zone ${item.seatId?.substring(0, 4)}`,
+            id: item.seats?.zoneId || item.seatId?.substring(0, 4) || 'unknown',
+            name: item.seats?.zones?.name || `Zone ${item.seatId?.substring(0, 4)}`,
             themeColor: '#10B981'
           }
         }

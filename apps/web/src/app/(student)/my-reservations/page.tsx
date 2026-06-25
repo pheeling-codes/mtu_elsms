@@ -170,7 +170,7 @@ export default function ReservationsPage() {
 
         const { data, error } = await supabase
           .from('reservations')
-          .select('*')
+          .select('*, seats(seatNumber, zoneId, zones(name))')
           .eq('userId', user.id)
           .order('startTime', { ascending: false })
           .limit(50)
@@ -193,8 +193,8 @@ export default function ReservationsPage() {
             return {
               id: item.id,
               seatId: item.seatId,
-              seatName: `Seat ${item.seatId?.substring(0, 6) || 'Unknown'}`,
-              zone: 'Zone A',
+              seatName: item.seats?.seatNumber ? `Seat ${item.seats.seatNumber}` : `Seat ${item.seatId?.substring(0, 6) || 'Unknown'}`,
+              zone: item.seats?.zones?.name || 'Zone A',
               date: formatDate(new Date(item.startTime)),
               startTime: formatTime(new Date(item.startTime)),
               endTime: formatTime(new Date(item.endTime)),

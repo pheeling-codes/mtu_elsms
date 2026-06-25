@@ -104,12 +104,11 @@ export default function ReservationsPage() {
     try {
       console.log('Fetching admin reservations with filters:', { zoneFilter, statusFilter, dateFilter })
 
-      // Build simple query without joins to avoid relationship issues
-      // Explicitly select columns to prevent PostgREST from trying to resolve relationships
+      // Build simple query with joins to get related data
       let query = supabase
         .from("reservations")
-        .select("id, userid, seatid, zoneid, seatname, zonename, studentname, studentmatric, starttime, endtime, status, checkintime, checkouttime, createdat, updatedat", { count: "exact" })
-        .order("starttime", { ascending: false })
+        .select("*, users(full_name, matric_number), seats(seatNumber, zoneId, zones(name))", { count: "exact" })
+        .order("startTime", { ascending: false })
 
       console.log('Query built with explicit lowercase columns')
 
@@ -118,27 +117,27 @@ export default function ReservationsPage() {
       if (dateFilter === "today") {
         const today = new Date()
         today.setHours(0, 0, 0, 0)
-        query = query.gte("starttime", today.toISOString())
-          .lt("starttime", new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString())
+        query = query.gte("startTime", today.toISOString())
+          .lt("startTime", new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString())
       } else if (dateFilter === "yesterday") {
         const yesterday = new Date()
         yesterday.setDate(yesterday.getDate() - 1)
         yesterday.setHours(0, 0, 0, 0)
-        query = query.gte("starttime", yesterday.toISOString())
-          .lt("starttime", new Date(yesterday.getTime() + 24 * 60 * 60 * 1000).toISOString())
+        query = query.gte("startTime", yesterday.toISOString())
+          .lt("startTime", new Date(yesterday.getTime() + 24 * 60 * 60 * 1000).toISOString())
       } else if (dateFilter === "week") {
         const weekAgo = new Date()
         weekAgo.setDate(weekAgo.getDate() - 7)
-        query = query.gte("starttime", weekAgo.toISOString())
+        query = query.gte("startTime", weekAgo.toISOString())
       } else if (dateFilter === "month") {
         const monthAgo = new Date()
         monthAgo.setDate(monthAgo.getDate() - 30)
-        query = query.gte("starttime", monthAgo.toISOString())
+        query = query.gte("startTime", monthAgo.toISOString())
       }
 
       // Apply zone filter
       if (zoneFilter !== "all") {
-        query = query.eq("seatid", zoneFilter)
+        query = query.eq("seatId", zoneFilter)
       }
 
       // Apply status filter
@@ -158,25 +157,25 @@ export default function ReservationsPage() {
       // Transform data to match interface
       const transformedData: Reservation[] = (data || []).map((item: any) => ({
         id: item.id,
-        userId: item.userid,
-        seatId: item.seatid,
-        startTime: item.starttime,
-        endTime: item.endtime,
+        userId: item.userId,
+        seatId: item.seatId,
+        startTime: item.startTime,
+        endTime: item.endTime,
         status: item.status,
-        createdAt: item.createdat,
+        createdAt: item.createdAt,
         user: {
-          id: item.userid,
-          matricNumber: item.studentmatric || `MTU/${item.userid?.substring(0, 6) || 'Unknown'}`,
+          id: item.userId,
+          matricNumber: item.users?.matric_number || `MTU/${item.userId?.substring(0, 6) || 'Unknown'}`,
           avatarUrl: undefined,
-          fullName: item.studentname || 'Unknown Student',
+          fullName: item.users?.full_name || 'Unknown Student',
         },
         seat: {
-          id: item.seatid,
-          seatNumber: item.seatname || `Seat ${item.seatid?.substring(0, 6) || 'Unknown'}`,
-          zoneId: item.zoneid || "",
+          id: item.seatId,
+          seatNumber: item.seats?.seatNumber ? `Seat ${item.seats.seatNumber}` : `Seat ${item.seatId?.substring(0, 6) || 'Unknown'}`,
+          zoneId: item.seats?.zoneId || "",
           zone: {
-            id: item.zoneid || "",
-            name: item.zonename || `Zone ${item.zoneid?.substring(0, 4) || 'Unknown'}`,
+            id: item.seats?.zoneId || "",
+            name: item.seats?.zones?.name || 'Unknown',
           },
         },
       }))

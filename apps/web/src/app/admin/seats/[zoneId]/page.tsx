@@ -134,17 +134,16 @@ export default function SeatManagementPage() {
 
       if (zoneError) throw zoneError
       
-      // Map snake_case columns to camelCase
       const zoneWithDefaults: Zone = {
         ...zoneData,
         color: zoneData.color || "#10B981",
-        gridBlockSize: zoneData.grid_block_size || 0.5,
-        seatSize: zoneData.seat_size || 1.0,
-        canvasWidth: zoneData.canvas_width || 20,
-        canvasHeight: zoneData.canvas_height || 15,
+        gridBlockSize: zoneData.gridBlockSize || 0.5,
+        seatSize: zoneData.seatSize || 1.0,
+        canvasWidth: zoneData.canvasWidth || 20,
+        canvasHeight: zoneData.canvasHeight || 15,
         features: zoneData.features || [],
-        createdAt: zoneData.created_at,
-        updatedAt: zoneData.updated_at,
+        createdAt: zoneData.createdAt,
+        updatedAt: zoneData.updatedAt,
       }
       setZone(zoneWithDefaults)
 
@@ -365,17 +364,17 @@ export default function SeatManagementPage() {
   const saveLayout = async () => {
     setIsSaving(true)
     try {
-      // Save zone settings (using snake_case for Supabase)
+      // Save zone settings (using correct camelCase schema for Supabase)
       const { error: zoneError } = await supabase
         .from("zones")
         .update({
           color: zone?.color,
-          grid_block_size: zone?.gridBlockSize,
-          seat_size: zone?.seatSize,
-          canvas_width: zone?.canvasWidth,
-          canvas_height: zone?.canvasHeight,
+          gridBlockSize: zone?.gridBlockSize,
+          seatSize: zone?.seatSize,
+          canvasWidth: zone?.canvasWidth,
+          canvasHeight: zone?.canvasHeight,
           features: zone?.features || [],
-          updated_at: new Date().toISOString(), // Explicitly update audit timestamp
+          updatedAt: new Date().toISOString(), // Explicitly update audit timestamp
         })
         .eq("id", zoneId)
 
@@ -399,8 +398,6 @@ export default function SeatManagementPage() {
             status: seat.status,
             x: seat.x,
             y: seat.y,
-            width: seat.width,
-            height: seat.height,
             features: seat.features,
             updatedAt: new Date().toISOString(),
           })
