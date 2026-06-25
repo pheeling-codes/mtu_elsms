@@ -193,7 +193,7 @@ export default function ReservationsPage() {
             return {
               id: item.id,
               seatId: item.seatId,
-              seatName: item.seats?.seatNumber ? `Seat ${item.seats.seatNumber}` : `Seat ${item.seatId?.substring(0, 6) || 'Unknown'}`,
+              seatName: item.seats?.seatNumber || item.seatId?.substring(0, 6) || 'Unknown',
               zone: item.seats?.zones?.name || 'Zone A',
               date: formatDate(new Date(item.startTime)),
               startTime: formatTime(new Date(item.startTime)),

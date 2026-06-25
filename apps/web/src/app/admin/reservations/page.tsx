@@ -107,7 +107,7 @@ export default function ReservationsPage() {
       // Build simple query with joins to get related data
       let query = supabase
         .from("reservations")
-        .select("*, users(full_name, matric_number), seats(seatNumber, zoneId, zones(name))", { count: "exact" })
+        .select("*, users(full_name, email, matric_number), seats(seatNumber, zoneId, zones(name))", { count: "exact" })
         .order("startTime", { ascending: false })
 
       console.log('Query built with explicit lowercase columns')
@@ -167,11 +167,11 @@ export default function ReservationsPage() {
           id: item.userId,
           matricNumber: item.users?.matric_number || `MTU/${item.userId?.substring(0, 6) || 'Unknown'}`,
           avatarUrl: undefined,
-          fullName: item.users?.full_name || 'Unknown Student',
+          fullName: item.users?.email || item.users?.full_name || 'Unknown Student',
         },
         seat: {
           id: item.seatId,
-          seatNumber: item.seats?.seatNumber ? `Seat ${item.seats.seatNumber}` : `Seat ${item.seatId?.substring(0, 6) || 'Unknown'}`,
+          seatNumber: item.seats?.seatNumber || item.seatId?.substring(0, 6) || 'Unknown',
           zoneId: item.seats?.zoneId || "",
           zone: {
             id: item.seats?.zoneId || "",
