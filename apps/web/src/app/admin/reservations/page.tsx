@@ -478,11 +478,11 @@ export default function ReservationsPage() {
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-[#10B981] to-[#059669] rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                      {reservation.user.matricNumber.charAt(0).toUpperCase()}
+                      {reservation.user.fullName.charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <p className="font-semibold text-slate-900">
-                        Student {reservation.user.matricNumber}
+                        {reservation.user.fullName}
                       </p>
                       <p className="text-xs text-slate-500">
                         {reservation.user.matricNumber}
@@ -491,7 +491,7 @@ export default function ReservationsPage() {
                   </div>
                   <div className="space-y-1">
                     <p className="font-semibold text-slate-900">
-                      Seat {reservation.seat.seatNumber}
+                      {reservation.seat.seatNumber}
                     </p>
                     <p className="text-xs text-slate-500">
                       {reservation.seat.zone.name}
@@ -597,8 +597,8 @@ export default function ReservationsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel Reservation?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will cancel the reservation for student{" "}
-              <strong>{selectedReservation?.user.matricNumber}</strong> at Seat{" "}
+              This will cancel the reservation for{" "}
+              <strong>{selectedReservation?.user.fullName || selectedReservation?.user.matricNumber}</strong> at{" "}
               <strong>{selectedReservation?.seat.seatNumber}</strong>. This
               action cannot be undone.
             </AlertDialogDescription>
@@ -626,8 +626,8 @@ export default function ReservationsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Force Release Seat?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will immediately end the active session for student{" "}
-              <strong>{selectedReservation?.user.matricNumber}</strong> at Seat{" "}
+              This will immediately end the active session for{" "}
+              <strong>{selectedReservation?.user.fullName || selectedReservation?.user.matricNumber}</strong> at{" "}
               <strong>{selectedReservation?.seat.seatNumber}</strong>. The user
               will be checked out and the seat will become available.
             </AlertDialogDescription>
@@ -655,7 +655,7 @@ export default function ReservationsPage() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <p className="text-sm text-slate-500">Student</p>
-              <p className="font-semibold text-slate-900">{selectedReservation?.user.matricNumber}</p>
+              <p className="font-semibold text-slate-900">{selectedReservation?.user.fullName}</p>
             </div>
             <div className="space-y-2">
               <p className="text-sm text-slate-500">Seat</p>
@@ -697,8 +697,8 @@ export default function ReservationsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Reservation?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the reservation for student{" "}
-              <strong>{selectedReservation?.user.matricNumber}</strong> at Seat{" "}
+              This will permanently delete the reservation for{" "}
+              <strong>{selectedReservation?.user.fullName || selectedReservation?.user.matricNumber}</strong> at{" "}
               <strong>{selectedReservation?.seat.seatNumber}</strong>. This
               action cannot be undone.
             </AlertDialogDescription>

@@ -546,15 +546,12 @@ export default function ReservationsPage() {
                       <p className="text-xs text-slate-500">
                         {reservation.user.matricNumber}
                       </p>
-                      <p className="text-xs text-slate-400">
-                        {reservation.user.email}
-                      </p>
                     </div>
                   </div>
 
                   <div className="space-y-1">
                     <p className="font-semibold text-slate-900">
-                      Seat {reservation.seat.seatNumber}
+                      {reservation.seat.seatNumber}
                     </p>
                     <p className="text-xs text-slate-500">
                       {reservation.seat.zone.name}
@@ -672,7 +669,7 @@ export default function ReservationsPage() {
             <AlertDialogTitle>Cancel Reservation?</AlertDialogTitle>
             <AlertDialogDescription>
               This will cancel the reservation for{" "}
-              <strong>{selectedReservation?.user.fullName}</strong> at Seat{" "}
+              <strong>{selectedReservation?.user.fullName || selectedReservation?.user.matricNumber}</strong> at{" "}
               <strong>{selectedReservation?.seat.seatNumber}</strong>. This
               action cannot be undone.
             </AlertDialogDescription>
@@ -701,7 +698,7 @@ export default function ReservationsPage() {
             <AlertDialogTitle>Force Release Seat?</AlertDialogTitle>
             <AlertDialogDescription>
               This will immediately end the active session for{" "}
-              <strong>{selectedReservation?.user.fullName}</strong> at Seat{" "}
+              <strong>{selectedReservation?.user.fullName || selectedReservation?.user.matricNumber}</strong> at{" "}
               <strong>{selectedReservation?.seat.seatNumber}</strong>. The user
               will be checked out and the seat will become available.
             </AlertDialogDescription>
