@@ -170,9 +170,9 @@ export default function ReservationsPage() {
 
         const { data, error } = await supabase
           .from('reservations')
-          .select('id, userid, seatid, zoneid, seatname, zonename, studentname, studentmatric, starttime, endtime, status, checkintime, checkouttime, createdat, updatedat')
-          .eq('userid', user.id)
-          .order('starttime', { ascending: false })
+          .select('*')
+          .eq('userId', user.id)
+          .order('startTime', { ascending: false })
           .limit(50)
 
         if (error) {
@@ -183,8 +183,8 @@ export default function ReservationsPage() {
         // Transform the data to match our interface
         const transformedReservations: Reservation[] = (data || []).map((item: any) => {
           try {
-            const startTime = new Date(item.starttime)
-            const endTime = new Date(item.endtime)
+            const startTime = new Date(item.startTime)
+            const endTime = new Date(item.endTime)
             const now = new Date()
 
             // Use actual database status directly
@@ -192,15 +192,15 @@ export default function ReservationsPage() {
 
             return {
               id: item.id,
-              seatId: item.seatid,
-              seatName: item.seatname || `Seat ${item.seatid?.substring(0, 6) || 'Unknown'}`,
-              zone: item.zonename || 'Zone A',
-              date: formatDate(new Date(item.starttime)),
-              startTime: formatTime(new Date(item.starttime)),
-              endTime: formatTime(new Date(item.endtime)),
+              seatId: item.seatId,
+              seatName: `Seat ${item.seatId?.substring(0, 6) || 'Unknown'}`,
+              zone: 'Zone A',
+              date: formatDate(new Date(item.startTime)),
+              startTime: formatTime(new Date(item.startTime)),
+              endTime: formatTime(new Date(item.endTime)),
               status,
               features: [], // Default empty features since we're not doing joins
-              checkInDeadline: status === 'RESERVED' && startTime > now ? new Date(startTime.getTime() - 15 * 60 * 1000) : undefined
+              checkInDeadline: status === 'ACTIVE' && startTime > now ? new Date(startTime.getTime() - 15 * 60 * 1000) : undefined
             }
           } catch (error) {
             console.error('Error transforming reservation item:', item, error)

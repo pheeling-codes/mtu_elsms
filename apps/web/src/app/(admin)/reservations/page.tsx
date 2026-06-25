@@ -145,13 +145,13 @@ export default function ReservationsPage() {
       // Explicitly select columns to prevent PostgREST from trying to resolve relationships
       let query = supabase
         .from('reservations')
-        .select('id, userid, seatid, zoneid, starttime, endtime, status, checkintime, checkouttime, createdat, updatedat', { count: 'exact' })
-        .order('starttime', { ascending: false })
+        .select('*', { count: 'exact' })
+        .order('startTime', { ascending: false })
         .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
 
       // Apply filters
       if (zoneFilter !== 'all') {
-        query = query.eq('seatid', zoneFilter)
+        query = query.eq('seatId', zoneFilter)
       }
       if (statusFilter !== 'all') {
         query = query.eq('status', statusFilter.toUpperCase())
@@ -159,22 +159,22 @@ export default function ReservationsPage() {
       if (dateFilter === 'today') {
         const today = new Date()
         today.setHours(0, 0, 0, 0)
-        query = query.gte('starttime', today.toISOString())
-          .lt('starttime', new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString())
+        query = query.gte('startTime', today.toISOString())
+          .lt('startTime', new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString())
       } else if (dateFilter === 'yesterday') {
         const yesterday = new Date()
         yesterday.setDate(yesterday.getDate() - 1)
         yesterday.setHours(0, 0, 0, 0)
-        query = query.gte('starttime', yesterday.toISOString())
-          .lt('starttime', new Date(yesterday.getTime() + 24 * 60 * 60 * 1000).toISOString())
+        query = query.gte('startTime', yesterday.toISOString())
+          .lt('startTime', new Date(yesterday.getTime() + 24 * 60 * 60 * 1000).toISOString())
       } else if (dateFilter === 'week') {
         const weekAgo = new Date()
         weekAgo.setDate(weekAgo.getDate() - 7)
-        query = query.gte('starttime', weekAgo.toISOString())
+        query = query.gte('startTime', weekAgo.toISOString())
       } else if (dateFilter === 'month') {
         const monthAgo = new Date()
         monthAgo.setDate(monthAgo.getDate() - 30)
-        query = query.gte('starttime', monthAgo.toISOString())
+        query = query.gte('startTime', monthAgo.toISOString())
       }
 
       const { data, error, count } = await query
@@ -197,27 +197,27 @@ export default function ReservationsPage() {
       // Transform the data to match our interface with mock data for user and seat details
       const transformedData: Reservation[] = data.map((item: any) => ({
         id: item.id,
-        userId: item.userid,
-        seatId: item.seatid,
-        startTime: item.starttime,
-        endTime: item.endtime,
+        userId: item.userId,
+        seatId: item.seatId,
+        startTime: item.startTime,
+        endTime: item.endTime,
         status: item.status,
-        checkInTime: item.checkintime,
-        checkOutTime: item.checkouttime,
-        createdAt: item.createdat,
+        checkInTime: item.checkInTime,
+        checkOutTime: item.checkOutTime,
+        createdAt: item.createdAt,
         user: {
-          id: item.userid,
-          fullName: `Student ${item.userid.substring(0, 8)}`,
-          email: `student${item.userid.substring(0, 8)}@mtu.edu`,
-          matricNumber: `MTU/${item.userid.substring(0, 6)}`
+          id: item.userId,
+          fullName: `Student ${item.userId.substring(0, 8)}`,
+          email: `student${item.userId.substring(0, 8)}@mtu.edu`,
+          matricNumber: `MTU/${item.userId.substring(0, 6)}`
         },
         seat: {
-          id: item.seatid,
-          seatNumber: `Seat ${item.seatid.substring(0, 6)}`,
+          id: item.seatId,
+          seatNumber: `Seat ${item.seatId.substring(0, 6)}`,
           features: [],
           zone: {
-            id: item.seatid?.substring(0, 4) || 'unknown',
-            name: `Zone ${item.seatid?.substring(0, 4)}`,
+            id: item.seatId?.substring(0, 4) || 'unknown',
+            name: `Zone ${item.seatId?.substring(0, 4)}`,
             themeColor: '#10B981'
           }
         }
