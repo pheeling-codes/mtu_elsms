@@ -193,7 +193,7 @@ export default function ReservationsPage() {
             return {
               id: item.id,
               seatId: item.seatId,
-              seatName: item.seats?.seatNumber || item.seatId?.substring(0, 6) || 'Unknown',
+              seatName: item.seats?.seatNumber ? `Seat ${item.seats.seatNumber}` : `Seat ${item.seatId?.substring(0, 6) || 'Unknown'}`,
               zone: item.seats?.zones?.name || 'Zone A',
               date: formatDate(new Date(item.startTime)),
               startTime: formatTime(new Date(item.startTime)),
@@ -434,7 +434,7 @@ export default function ReservationsPage() {
                             <Armchair className="w-5 h-5 text-emerald-500" />
                           </div>
                           <div>
-                            <h3 className="font-semibold text-slate-900">Seat {reservation.seatName}</h3>
+                            <h3 className="font-semibold text-slate-900">{reservation.seatName}</h3>
                             <div className="flex items-center gap-2 text-xs text-slate-500">
                               <MapPin className="w-3 h-3" />
                               <span>{reservation.zone}</span>
@@ -516,7 +516,7 @@ export default function ReservationsPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-white">
           <DialogTitle className="sr-only">
-            {selectedReservation ? `Reservation Details - Seat ${selectedReservation.seatName}` : "Reservation Details"}
+            {selectedReservation ? `Reservation Details - ${selectedReservation.seatName}` : "Reservation Details"}
           </DialogTitle>
           <DialogDescription className="sr-only">
             View your reservation details, QR code for check-in, and manage your booking.
@@ -537,7 +537,7 @@ export default function ReservationsPage() {
           <DialogHeader>
             <DialogTitle>Cancel Reservation?</DialogTitle>
             <DialogDescription>
-              Are you sure you want to cancel your reservation for Seat {selectedReservation?.seatName} on {selectedReservation?.date}? This action cannot be undone.
+              Are you sure you want to cancel your reservation for {selectedReservation?.seatName} on {selectedReservation?.date}? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -594,7 +594,7 @@ function ReservationDetailModal({
       <div className="pt-12 pb-6 px-6 text-center border-b border-slate-100">
         <StatusBadge status={reservation.status} />
         <h2 className="text-3xl font-bold text-slate-900 mt-3">
-          Seat {reservation.seatName}
+          {reservation.seatName}
         </h2>
         <p className="text-slate-500 text-sm mt-1">{reservation.zone}</p>
       </div>
@@ -603,6 +603,7 @@ function ReservationDetailModal({
       {reservation.status === "RESERVED" && reservation.checkInDeadline && (
         <div className="mx-6 my-4">
           <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 text-center">
+            <p className="text-sm font-medium text-amber-800 mb-2">Check-in by</p>
             <div className="text-4xl font-bold text-amber-600 tabular-nums">
               {timeLeft}
             </div>

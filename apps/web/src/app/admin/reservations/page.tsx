@@ -171,7 +171,7 @@ export default function ReservationsPage() {
         },
         seat: {
           id: item.seatId,
-          seatNumber: item.seats?.seatNumber || item.seatId?.substring(0, 6) || 'Unknown',
+          seatNumber: item.seats?.seatNumber ? `Seat ${item.seats.seatNumber}` : `Seat ${item.seatId?.substring(0, 6) || 'Unknown'}`,
           zoneId: item.seats?.zoneId || "",
           zone: {
             id: item.seats?.zoneId || "",
