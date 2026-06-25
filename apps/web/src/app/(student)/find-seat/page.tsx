@@ -533,16 +533,13 @@ export default function FindSeatPage() {
         .from('reservations')
         .insert({
           id: reservationId,
-          userid: currentUser.id,
-          seatid: selectedSeat.id,
-          zoneid: selectedSeat.zoneId,
-          seatname: selectedSeat.seatNumber,
-          zonename: zoneName,
-          studentname: currentUser.fullName || 'Unknown Student',
-          studentmatric: currentUser.matricNumber || 'Unknown',
-          starttime: startDateTime.toISOString(),
-          endtime: endDateTime.toISOString(),
-          status: 'RESERVED'
+          userId: currentUser.id,
+          seatId: selectedSeat.id,
+          startTime: startDateTime.toISOString(),
+          endTime: endDateTime.toISOString(),
+          status: 'RESERVED',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         })
         .select()
         .single()
