@@ -125,9 +125,9 @@ export default function FindSeatPage() {
             name,
             type,
             color,
-            grid_block_size,
-            canvas_width,
-            canvas_height,
+            "gridBlockSize",
+            "canvasWidth",
+            "canvasHeight",
             seats(count)
           `)
         
@@ -149,15 +149,8 @@ export default function FindSeatPage() {
         
         if (reservationsError) throw reservationsError
         
-        const formattedZones = (zonesData || []).map((z: any) => ({
-          ...z,
-          gridBlockSize: z.grid_block_size,
-          canvasWidth: z.canvas_width,
-          canvasHeight: z.canvas_height
-        }))
-        
         setSeats(seatsData || [])
-        setZones(formattedZones)
+        setZones(zonesData || [])
         setReservations(reservationsData || [])
       } catch (error) {
         console.error('Error fetching data:', error)
