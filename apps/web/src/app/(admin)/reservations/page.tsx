@@ -502,31 +502,32 @@ export default function ReservationsPage() {
           </div>
         ) : (
           <>
-            {/* Table Header - Fixed */}
-            <div className="grid grid-cols-[2fr_1.5fr_1.5fr_1fr_1.5fr] gap-4 px-6 py-3 bg-slate-50 border-b border-slate-200 shrink-0">
-              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
-                User
-              </div>
-              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
-                Seat & Zone
-              </div>
-              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
-                Time
-              </div>
-              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
-                Status
-              </div>
-              <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider text-right">
-                Actions
-              </div>
-            </div>
-
-            {/* Table Body - Scrollable */}
-            <div
-              className="divide-y divide-slate-100 overflow-y-auto"
+            <div 
+              className="overflow-y-auto"
               style={{ height: TABLE_HEIGHT }}
             >
-              {reservations.map((reservation) => (
+              {/* Table Header - Fixed */}
+              <div className="sticky top-0 z-10 grid grid-cols-[2fr_1.5fr_1.5fr_1fr_1.5fr] gap-4 px-6 py-3 bg-slate-50 border-b border-slate-200">
+                <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
+                  User
+                </div>
+                <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
+                  Seat & Zone
+                </div>
+                <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
+                  Time
+                </div>
+                <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider">
+                  Status
+                </div>
+                <div className="font-semibold text-slate-700 uppercase text-xs tracking-wider text-right">
+                  Actions
+                </div>
+              </div>
+
+              {/* Table Body - Scrollable */}
+              <div className="divide-y divide-slate-100">
+                {reservations.map((reservation) => (
                 <div
                   key={reservation.id}
                   className={`grid grid-cols-[2fr_1.5fr_1.5fr_1fr_1.5fr] gap-4 px-6 py-4 items-center transition-all duration-500 ${
@@ -625,6 +626,8 @@ export default function ReservationsPage() {
                   </div>
                 </div>
               ))}
+            </div>
+
             </div>
 
             {/* Pagination - Fixed */}
